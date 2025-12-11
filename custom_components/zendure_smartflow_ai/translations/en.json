@@ -1,0 +1,10 @@
+{
+  "title": "Zendure SmartFlow AI",
+  "state": {
+    "charging": "charging",
+    "cheap_wait": "waiting for cheap period",
+    "peak_wait": "waiting for peak",
+    "overpriced": "too expensive",
+    "ok": "balanced"
+  }
+}
