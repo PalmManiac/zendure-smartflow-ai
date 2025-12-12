@@ -1,182 +1,126 @@
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import UnitOfEnergy
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, DEFAULTS
-
-
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    async_add_entities([ZendureSmartFlowAISensor(hass)], True)
+from .const import DOMAIN, SENSOR_STATUS, SENSOR_RECOMMENDATION
 
 
-class ZendureSmartFlowAISensor(SensorEntity):
-    _attr_name = "Zendure SmartFlow AI – KI Ladeplan"
-    _attr_icon = "mdi:brain"
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry,
+    async_add_entities: AddEntitiesCallback,
+):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
+
+    async_add_entities(
+        [
+            SmartFlowStatusSensor(coordinator),
+            SmartFlowRecommendationSensor(coordinator),
+        ]
+    )
+
+
+class SmartFlowBaseSensor(CoordinatorEntity, SensorEntity):
+    """Basisklasse für alle SmartFlow Sensoren"""
+
     _attr_has_entity_name = True
 
-    def __init__(self, hass):
-        self.hass = hass
-        self._attr_unique_id = "zendure_smartflow_ai_ki_ladeplan"
+    def __init__(self, coordinator, sensor_type: str):
+        super().__init__(coordinator)
+        self._sensor_type = sensor_type
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{sensor_type}"
 
-    async def async_update(self):
-        hass = self.hass
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
 
-        # =========================
-        # 1) BASISWERTE
-        # =========================
-        def f(entity, default=0):
-            try:
-                return float(hass.states.get(entity).state)
-            except Exception:
-                return default
 
-        soc = f("sensor.solarflow_2400_ac_electric_level")
-        soc_min = f("input_number.zendure_soc_reserve_min", 12)
-        soc_max = f("input_number.zendure_soc_ziel_max", 95)
+class SmartFlowStatusSensor(SmartFlowBaseSensor):
+    """KI-Ladeplan Status"""
 
-        max_charge_w = f("input_number.zendure_max_ladeleistung", 2000)
-        max_discharge_w = f("input_number.zendure_max_entladeleistung", 700)
+    _attr_name = "SmartFlow KI-Status"
+    _attr_icon = "mdi:brain"
 
-        fixed_teuer = f("input_number.zendure_schwelle_teuer", 0.35)
-        fixed_extrem = f("input_number.zendure_schwelle_extrem", 0.49)
+    def __init__(self, coordinator):
+        super().__init__(coordinator, SENSOR_STATUS)
 
-        export = hass.states.get(
-            "sensor.paul_schneider_strasse_39_diagramm_datenexport"
-        )
+    @property
+    def native_value(self):
+        data = self.coordinator.data
 
-        raw = export.attributes.get("data") if export else None
+        if not data or "prices" not in data:
+            return "datenproblem_preisquelle"
 
-        if not raw or len(raw) < 4:
-            self._attr_native_value = "datenproblem_preisquelle"
-            return
-
-        # =========================
-        # 2) AKKU
-        # =========================
-        battery_kwh = DEFAULTS["battery_kwh"]
-
-        soc_clamped = min(max(soc, 0), 100)
-        usable_soc = max(soc_clamped - soc_min, 0)
-        usable_kwh = battery_kwh * usable_soc / 100
-
-        # =========================
-        # 3) PREISE
-        # =========================
-        prices = [float(p["price_per_kwh"]) for p in raw]
-        prices = prices[: DEFAULTS["horizon_slots"]]
+        prices = data["prices"]
+        soc = data["soc"]
+        soc_min = data["soc_min"]
+        soc_max = data["soc_max"]
 
         current_price = prices[0]
-        min_price = min(prices)
-        max_price = max(prices)
-        avg_price = sum(prices) / len(prices)
-        span = max_price - min_price
 
-        # =========================
-        # 4) DYNAMISCHE SCHWELLEN
-        # =========================
-        expensive = max(fixed_teuer, avg_price + span * 0.25)
-        very_expensive = max(fixed_extrem, avg_price + span * 0.55)
+        expensive = data["expensive"]
 
-        # =========================
-        # 5) PEAK-BLÖCKE
-        # =========================
-        blocks = []
-        current = None
+        # Peak-Erkennung
+        peaks = [p for p in prices if p >= expensive]
 
-        for i, price in enumerate(prices):
-            if price >= expensive:
-                if current is None:
-                    current = {"start": i, "len": 1}
-                else:
-                    current["len"] += 1
-            else:
-                if current:
-                    blocks.append(current)
-                    current = None
+        if not peaks:
+            return "keine_peaks_heute"
 
-        if current:
-            blocks.append(current)
-
-        interesting = [
-            b for b in blocks
-            if b["len"] * 0.25 >= DEFAULTS["min_peak_duration_h"]
-        ]
-
-        if not interesting:
-            self._attr_native_value = "keine_peaks"
-            return
-
-        # =========================
-        # 6) PEAK BEWERTUNG
-        # =========================
-        for b in interesting:
-            slice_ = prices[b["start"]: b["start"] + b["len"]]
-            b["duration_h"] = b["len"] * 0.25
-            b["max"] = max(slice_)
-            b["avg"] = sum(slice_) / len(slice_)
-            b["score"] = (
-                (b["max"] - avg_price) / (span + 0.0001)
-                + b["duration_h"] / 24
-            )
-
-        best = interesting[0]
-        for b in interesting:
-            if b["max"] >= very_expensive and best["max"] < very_expensive:
-                best = b
-            elif b["score"] > best["score"]:
-                best = b
-
-        # =========================
-        # 7) ENERGIEBEDARF
-        # =========================
-        discharge_kw = (
-            max_discharge_w * DEFAULTS["discharge_efficiency"] / 1000
-        )
-        total_peak_hours = sum(b["duration_h"] for b in interesting)
-        needed_kwh = total_peak_hours * discharge_kw
-        missing_kwh = max(needed_kwh - usable_kwh, 0)
-
-        charge_kw = (
-            max_charge_w * DEFAULTS["charge_efficiency"] / 1000
-        )
-        need_minutes = (
-            missing_kwh / charge_kw * 60
-            if missing_kwh > 0 and charge_kw > 0
-            else 0
-        )
-
-        minutes_to_peak = best["start"] * 15
-
-        # =========================
-        # 8) STATUSLOGIK (DE)
-        # =========================
+        # Peak läuft gerade
         if current_price >= expensive:
             if soc <= soc_min:
-                state = "teuer_jetzt_akkuschutz"
-            else:
-                state = "teuer_jetzt_entladen_empfohlen"
+                return "teuer_jetzt_akkuschutz"
+            return "teuer_jetzt_entladen_empfohlen"
 
-        elif missing_kwh <= 0:
-            state = "ausreichend_geladen"
+        # günstigster Preis in Zukunft?
+        min_price = min(prices)
+        cheapest_idx = prices.index(min_price)
 
-        else:
-            cheapest_idx = prices.index(min_price)
-            if cheapest_idx > 0:
-                state = "günstige_phase_kommt_noch"
-            else:
-                state = "laden_notwendig_für_peak"
+        if cheapest_idx > 0 and soc < soc_max:
+            return "günstige_phase_kommt_noch"
 
-        self._attr_native_value = state
+        if cheapest_idx == 0 and soc < soc_max:
+            return "günstigste_phase_verpasst"
 
-        # =========================
-        # 9) ATTRIBUTE (DEBUG/UI)
-        # =========================
-        self._attr_extra_state_attributes = {
-            "soc": round(soc, 1),
-            "usable_kwh": round(usable_kwh, 2),
-            "missing_kwh": round(missing_kwh, 2),
-            "expensive_threshold": round(expensive, 3),
-            "best_peak_hours": round(best["duration_h"], 2),
-            "minutes_to_peak": minutes_to_peak,
-        }
+        # Energiebedarf grob
+        usable_kwh = data["usable_kwh"]
+        needed_kwh = data["needed_kwh"]
+
+        if needed_kwh > usable_kwh:
+            return "laden_notwendig_für_peak"
+
+        return "keine_ladung_notwendig"
+
+
+class SmartFlowRecommendationSensor(SmartFlowBaseSensor):
+    """Konkrete Steuerungsempfehlung"""
+
+    _attr_name = "SmartFlow Steuerungsempfehlung"
+    _attr_icon = "mdi:battery-heart"
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator, SENSOR_RECOMMENDATION)
+
+    @property
+    def native_value(self):
+        status = self.coordinator.data.get("status")
+
+        if status in (
+            "laden_notwendig_für_peak",
+            "günstigste_phase_verpasst",
+        ):
+            return "ki_laden"
+
+        if status == "teuer_jetzt_entladen_empfohlen":
+            return "entladen"
+
+        if status == "teuer_jetzt_akkuschutz":
+            return "standby"
+
+        if status == "günstige_phase_kommt_noch":
+            return "warten"
+
+        return "standby"
