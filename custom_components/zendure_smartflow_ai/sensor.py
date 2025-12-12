@@ -45,8 +45,9 @@ class ZendureSmartFlowStatusSensor(
         self._attr_unique_id = f"{coordinator.entry_id}_ai_status"
 
     @property
-    def native_value(self) -> str:
-        return self.coordinator.data["ai_status"]
+    def native_value(self):
+        return self.coordinator.data.get("ai_status", "unknown")
+
 
 
 # ============================================================
