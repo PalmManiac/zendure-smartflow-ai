@@ -19,6 +19,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
         """Initialize coordinator."""
 
         self.entry = entry
+        self.entry_id = entry.entry_id 
 
         super().__init__(
             hass,
