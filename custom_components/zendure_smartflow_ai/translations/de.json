@@ -1,10 +1,20 @@
 {
-  "title": "Zendure SmartFlow AI",
-  "state": {
-    "charging": "lädt",
-    "cheap_wait": "wartet auf günstige Phase",
-    "peak_wait": "wartet auf Peak",
-    "overpriced": "zu teuer",
-    "ok": "ausgeglichen"
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI einrichten",
+        "description": "KI-gestützte Lade- und Entladeplanung für Zendure SolarFlow AC Systeme.",
+        "data": {
+          "soc_sensor": "Akku-Ladestand (SoC)",
+          "price_sensor": "Strompreis-Datenexport (15 Minuten)",
+          "soc_min": "Reserve-SoC (%) – Untergrenze für Entladung",
+          "soc_max": "Ziel-SoC (%) – Maximaler Ladezustand",
+          "max_charge_power": "Maximale Ladeleistung (W)",
+          "max_discharge_power": "Maximale Entladeleistung (W)",
+          "expensive_threshold": "Schwelle „teuer“ (€/kWh)",
+          "extreme_threshold": "Schwelle „extrem teuer“ (€/kWh)"
+        }
+      }
+    }
   }
 }
