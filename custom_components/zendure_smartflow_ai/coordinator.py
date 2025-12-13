@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import logging
+from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+from .ai_logic import calculate_ai_state
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
-    """Coordinator für Zendure SmartFlow AI"""
+    """Zendure SmartFlow AI – zentraler Datenkoordinator"""
 
     def __init__(self, hass: HomeAssistant, entry):
+        self.hass = hass
         self.entry = entry
         self.entry_id = entry.entry_id
 
@@ -23,32 +26,61 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=30),
         )
 
-    async def _async_update_data(self):
-        """Zentrale KI-Logik (V0.1 – Platzhalter, aber stabil)"""
+       async def _async_update_data(self):
+        """Zentrale Datenaktualisierung"""
 
-        # ⚠️ HIER kommt später deine echte KI-Logik rein
-        # aktuell bewusst einfach & stabil
+        # --- 1) HA-Entitäten einlesen ---
+        def get_float(entity_id, default=0.0):
+            try:
+                return float(self.hass.states.get(entity_id).state)
+            except Exception:
+                return default
 
-        ai_status = "warten"
-        ai_status_text = "Günstigste Ladephase kommt noch vor dem nächsten Peak"
+        soc = get_float("sensor.solarflow_2400_ac_electric_level")
+        soc_min = get_float("input_number.zendure_soc_reserve_min", 12)
+        soc_max = get_float("input_number.zendure_soc_ziel_max", 95)
 
-        recommendation = "standby"
-        recommendation_reason = "Kein Handlungsbedarf laut aktueller Preislage"
+        max_charge = get_float("input_number.zendure_max_ladeleistung", 2000)
+        max_discharge = get_float("input_number.zendure_max_entladeleistung", 700)
+        expensive_threshold = get_float("input_number.zendure_schwelle_teuer", 0.35)
 
-        debug_short = "waiting_for_cheapest_slot"
-        debug = {
-            "info": "Platzhalter-Logik V0.1",
-            "hinweis": "KI-Logik wird später erweitert",
+        battery_kwh = 5.76
+
+        # --- 2) Preisdaten aus Tibber-Datenexport ---
+        prices = []
+
+        export = self.hass.states.get(
+            "sensor.paul_schneider_strasse_39_diagramm_datenexport"
+        )
+
+        if export and export.attributes.get("data"):
+            try:
+                prices = [
+                    float(p["price_per_kwh"])
+                    for p in export.attributes["data"]
+                ]
+            except Exception as err:
+                _LOGGER.warning("Preisimport fehlgeschlagen: %s", err)
+
+        # --- 3) KI berechnen ---
+        ai_result = calculate_ai_state(
+            prices=prices,
+            soc=soc,
+            soc_min=soc_min,
+            soc_max=soc_max,
+            battery_kwh=battery_kwh,
+            max_charge_w=max_charge,
+            max_discharge_w=max_discharge,
+            expensive_threshold=expensive_threshold,
+        )
+
+        # --- 4) Daten für Sensoren bereitstellen ---
+        return {
+            "ai_status": ai_result["ai_status"],
+            "ai_status_text": ai_result["ai_status_text"],
+            "recommendation": ai_result["recommendation"],
+            "recommendation_reason": ai_result["recommendation_reason"],
+            "debug": ai_result.get("debug", {}),
+            "debug_short": ai_result.get("debug_short", ""),
         }
 
-        data = {
-            "ai_status": ai_status,
-            "ai_status_text": ai_status_text,
-            "recommendation": recommendation,
-            "recommendation_reason": recommendation_reason,
-            "debug_short": debug_short,
-            "debug": debug,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        return data
