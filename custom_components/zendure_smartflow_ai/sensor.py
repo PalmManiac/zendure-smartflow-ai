@@ -1,96 +1,90 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-from .coordinator import ZendureSmartFlowCoordinator
 
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    async_add_entities,
-):
-    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(hass, entry, async_add_entities):
+    coordinator = hass.data[DOMAIN][entry.entry_id]
 
     async_add_entities(
         [
             ZendureSmartFlowStatusSensor(coordinator),
-            ZendureSmartFlowRecommendationSensor(coordinator),
+            ZendureAkkuSteuerungsempfehlungSensor(coordinator),
             ZendureSmartFlowDebugSensor(coordinator),
         ]
     )
 
 
-# ============================================================
-# 🔮 KI-STATUS SENSOR
-# ============================================================
+class ZendureBaseSensor(CoordinatorEntity, SensorEntity):
+    """Basisklasse für alle Zendure SmartFlow Sensoren"""
 
-class ZendureSmartFlowStatusSensor(
-    CoordinatorEntity,
-    SensorEntity,
-):
+    @property
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.coordinator.entry_id)},
+            "name": "Zendure SmartFlow AI",
+            "manufacturer": "Zendure",
+            "model": "SF2400AC (SmartFlow AI)",
+            "sw_version": "0.1.0",
+        }
+
+
+class ZendureSmartFlowStatusSensor(ZendureBaseSensor):
     _attr_name = "Zendure SmartFlow AI Status"
     _attr_icon = "mdi:brain"
-    _attr_has_entity_name = True
 
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator):
+    def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.entry_id}_ai_status"
 
     @property
     def native_value(self):
-        return self.coordinator.data.get("ai_status", "unknown")
+        return self.coordinator.data.get("ai_status")
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "beschreibung": self.coordinator.data.get("ai_status_text"),
+            "letzte_aktualisierung": self.coordinator.data.get("timestamp"),
+        }
 
 
-
-# ============================================================
-# ⚙️ STEUERUNGSEMPFEHLUNG
-# ============================================================
-
-class ZendureSmartFlowRecommendationSensor(
-    CoordinatorEntity,
-    SensorEntity,
-):
+class ZendureAkkuSteuerungsempfehlungSensor(ZendureBaseSensor):
     _attr_name = "Zendure Akku Steuerungsempfehlung"
-    _attr_icon = "mdi:robot"
-    _attr_has_entity_name = True
+    _attr_icon = "mdi:battery-charging-outline"
 
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator):
+    def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.entry_id}_recommendation"
 
     @property
-    def native_value(self) -> str:
-        return self.coordinator.data["recommendation"]
+    def native_value(self):
+        return self.coordinator.data.get("recommendation")
+
+    @property
+    def extra_state_attributes(self):
+        return {
+            "quelle": "Zendure SmartFlow AI",
+            "begründung": self.coordinator.data.get("recommendation_reason"),
+            "ai_status": self.coordinator.data.get("ai_status"),
+        }
 
 
-# ============================================================
-# 🧪 DEBUG SENSOR (TEXT)
-# ============================================================
-
-class ZendureSmartFlowDebugSensor(
-    CoordinatorEntity,
-    SensorEntity,
-):
+class ZendureSmartFlowDebugSensor(ZendureBaseSensor):
     _attr_name = "Zendure SmartFlow AI Debug"
-    _attr_icon = "mdi:bug"
-    _attr_has_entity_name = True
+    _attr_icon = "mdi:bug-outline"
 
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator):
+    def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.entry_id}_debug"
 
     @property
-    def native_value(self) -> str:
-        return self.coordinator.data["debug"]
+    def native_value(self):
+        return self.coordinator.data.get("debug_short")
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        return self.coordinator.data.get("debug_attributes", {})
+    def extra_state_attributes(self):
+        return self.coordinator.data.get("debug", {})
