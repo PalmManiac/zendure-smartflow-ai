@@ -1,4 +1,5 @@
 DOMAIN = "zendure_smartflow_ai"
+PLATFORMS = ["sensor"]
 
 # -------------------------------
 # AI Status (intern, stabil)
