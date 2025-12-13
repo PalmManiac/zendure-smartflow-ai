@@ -1,4 +1,8 @@
 from __future__ import annotations
+
+from datetime import datetime
+from typing import Dict, Any
+
 from .const import (
     AI_STATUS_NO_DATA,
     AI_STATUS_EXPENSIVE_NOW_PROTECT,
@@ -12,135 +16,142 @@ from .const import (
     RECOMMENDATION_KI_CHARGE,
 )
 
-def calculate_ai_state(
-    prices: list[float],
-    soc: float,
-    soc_min: float,
-    soc_max: float,
-    battery_kwh: float,
-    max_charge_w: float,
-    max_discharge_w: float,
-    expensive_threshold: float,
-) -> dict:
-    """
-    Zentrale KI-Logik für Zendure SmartFlow AI.
-    Gibt ausschließlich strukturierte Zustände zurück (keine HA-Abhängigkeiten).
-    """
 
-    # ---------- Defaults ----------
-    result = {
-        "ai_status": "no_data",
-        "ai_status_text": "Keine Preisdaten verfügbar",
-        "recommendation": "standby",
-        "recommendation_reason": "Preis- oder Systemdaten fehlen",
-        "debug": {},
-        "debug_short": "no_prices",
+def calculate_ai_state(data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Zentrale KI-Logik für Zendure SmartFlow AI
+
+    Erwartete Keys in `data`:
+    - soc (float, %)
+    - soc_min (float)
+    - soc_max (float)
+    - prices (list[float])  # 15-Minuten-Preise, ab JETZT
+    - current_price (float)
+    - expensive_threshold (float)
+    - cheap_threshold (float)
+    - battery_kwh (float)
+    - max_charge_w (float)
+    - max_discharge_w (float)
+
+    Rückgabe:
+    {
+        "ai_status": <ENUM>,
+        "recommendation": <ENUM>,
+        "debug": str
     }
+    """
 
+    # -----------------------------
+    # 1. Basiswerte einlesen
+    # -----------------------------
+    soc: float = float(data.get("soc", 0))
+    soc_min: float = float(data.get("soc_min", 12))
+    soc_max: float = float(data.get("soc_max", 95))
+
+    prices = data.get("prices", [])
+    current_price: float = float(data.get("current_price", 0))
+
+    expensive = float(data.get("expensive_threshold", 0.35))
+    cheap = float(data.get("cheap_threshold", 0.15))
+
+    battery_kwh: float = float(data.get("battery_kwh", 5.76))
+    max_charge_w: float = float(data.get("max_charge_w", 2000))
+    max_discharge_w: float = float(data.get("max_discharge_w", 700))
+
+    now = datetime.now()
+
+    # -----------------------------
+    # 2. Validierung
+    # -----------------------------
     if not prices:
-        return result
+        return {
+            "ai_status": AI_STATUS_NO_DATA,
+            "recommendation": RECOMMENDATION_STANDBY,
+            "debug": "Keine Preisdaten vorhanden"
+        }
 
-    # ---------- Grundwerte ----------
-    current_price = prices[0]
-    min_price = min(prices)
-    max_price = max(prices)
-    avg_price = sum(prices) / len(prices)
-    span = max_price - min_price
+    # -----------------------------
+    # 3. Energie-Berechnungen
+    # -----------------------------
+    usable_soc = max(soc - soc_min, 0)
+    available_kwh = battery_kwh * usable_soc / 100
 
-    usable_kwh = battery_kwh * max(soc - soc_min, 0) / 100
     charge_kw = (max_charge_w * 0.75) / 1000
     discharge_kw = (max_discharge_w * 0.85) / 1000
 
-    # Dynamische Schwelle
-    dynamic_expensive = avg_price + span * 0.25
-    expensive = max(expensive_threshold, dynamic_expensive)
-
-    # Peak-Erkennung
+    # -----------------------------
+    # 4. Peak-Erkennung
+    # -----------------------------
     peak_slots = [p for p in prices if p >= expensive]
     peak_hours = len(peak_slots) * 0.25
     needed_kwh = peak_hours * discharge_kw
-    missing_kwh = max(needed_kwh - usable_kwh, 0)
+    missing_kwh = max(needed_kwh - available_kwh, 0)
 
-    # Indexe
+    # ersten Peak in der Zukunft finden
     first_peak_index = None
     for i, p in enumerate(prices):
         if p >= expensive:
             first_peak_index = i
             break
 
-    cheapest_price = min_price
-    cheapest_index = prices.index(cheapest_price)
+    minutes_to_peak = first_peak_index * 15 if first_peak_index is not None else None
+    needed_minutes = (missing_kwh / charge_kw * 60) if charge_kw > 0 else 0
 
-    # ---------- Statuslogik ----------
+    # günstigster Slot
+    cheapest_price = min(prices)
+    cheapest_index = prices.index(cheapest_price)
+    cheapest_in_future = cheapest_index > 0
+
+    # -----------------------------
+    # 5. Entscheidungslogik
+    # -----------------------------
+
+    # A) Aktuell teuer
     if current_price >= expensive:
         if soc <= soc_min:
-            result.update(
-                ai_status="teuer_jetzt_akkuschutz",
-                ai_status_text="Hoher Preis – Akku zu leer zum Entladen",
-                recommendation="standby",
-                recommendation_reason="Akkuschutz bei hoher Preisphase",
-                debug_short="expensive_now_protect",
-            )
+            return {
+                "ai_status": AI_STATUS_EXPENSIVE_NOW_PROTECT,
+                "recommendation": RECOMMENDATION_STANDBY,
+                "debug": "Teurer Preis, Akku unter Reserve → Schutz"
+            }
         else:
-            result.update(
-                ai_status="teuer_jetzt_entladen",
-                ai_status_text="Hoher Preis – Entladen empfohlen",
-                recommendation="entladen",
-                recommendation_reason="Netzpreis hoch, Akku hat Reserve",
-                debug_short="expensive_now_discharge",
+            return {
+                "ai_status": AI_STATUS_EXPENSIVE_NOW_DISCHARGE,
+                "recommendation": RECOMMENDATION_DISCHARGE,
+                "debug": "Teurer Preis, Akku ausreichend → Entladen empfohlen"
+            }
+
+    # B) Peak kommt & Energie fehlt → gezielt laden
+    if (
+        first_peak_index is not None
+        and missing_kwh > 0
+        and minutes_to_peak is not None
+        and minutes_to_peak <= needed_minutes + 30
+        and soc < soc_max
+    ):
+        return {
+            "ai_status": AI_STATUS_CHARGE_FOR_PEAK,
+            "recommendation": RECOMMENDATION_KI_CHARGE,
+            "debug": (
+                f"Peak in {minutes_to_peak} min, "
+                f"fehlend {missing_kwh:.2f} kWh → Laden erforderlich"
             )
+        }
 
-    elif missing_kwh > 0 and first_peak_index is not None:
-        minutes_to_peak = first_peak_index * 15
-        needed_minutes = (missing_kwh / charge_kw * 60) if charge_kw > 0 else 0
-
-        if minutes_to_peak <= needed_minutes + 30:
-            result.update(
-                ai_status="laden_notwendig_fuer_peak",
-                ai_status_text="Energie reicht nicht für kommende Peakphase",
-                recommendation="ki_laden",
-                recommendation_reason="Vorbereitung auf hohe Preisphase",
-                debug_short="charge_for_peak",
+    # C) Günstigste Phase kommt noch → warten
+    if cheapest_in_future and soc < soc_max:
+        return {
+            "ai_status": AI_STATUS_WAIT_FOR_CHEAPEST,
+            "recommendation": RECOMMENDATION_STANDBY,
+            "debug": (
+                f"Günstigster Preis ({cheapest_price:.3f} €/kWh) "
+                f"in {cheapest_index * 15} min"
             )
-        else:
-            result.update(
-                ai_status="peak_spaeter",
-                ai_status_text="Peak erkannt – Laden später ausreichend",
-                recommendation="standby",
-                recommendation_reason="Noch ausreichend Zeit bis Peak",
-                debug_short="wait_for_peak",
-            )
+        }
 
-    elif cheapest_index > 0 and soc < soc_max:
-        result.update(
-            ai_status="guenstige_phase_kommt",
-            ai_status_text="Günstigste Preisphase kommt noch",
-            recommendation="standby",
-            recommendation_reason="Warten auf günstigeres Zeitfenster",
-            debug_short="cheapest_future",
-        )
-
-    else:
-        result.update(
-            ai_status="ausreichend_geladen",
-            ai_status_text="Keine Aktion erforderlich",
-            recommendation="standby",
-            recommendation_reason="Kein wirtschaftlicher Vorteil erkennbar",
-            debug_short="idle",
-        )
-
-    # ---------- Debug ----------
-    result["debug"] = {
-        "current_price": round(current_price, 4),
-        "min_price": round(min_price, 4),
-        "max_price": round(max_price, 4),
-        "avg_price": round(avg_price, 4),
-        "expensive_threshold": round(expensive, 4),
-        "usable_kwh": round(usable_kwh, 2),
-        "needed_kwh": round(needed_kwh, 2),
-        "missing_kwh": round(missing_kwh, 2),
-        "first_peak_index": first_peak_index,
-        "cheapest_index": cheapest_index,
+    # D) Nichts Besonderes
+    return {
+        "ai_status": AI_STATUS_IDLE,
+        "recommendation": RECOMMENDATION_STANDBY,
+        "debug": "Keine besondere Aktion erforderlich"
     }
-
-    return result
