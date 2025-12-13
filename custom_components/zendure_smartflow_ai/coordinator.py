@@ -26,16 +26,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=30),
         )
 
-       async def _async_update_data(self):
+    async def _async_update_data(self):
         """Zentrale Datenaktualisierung"""
 
-        # --- 1) HA-Entitäten einlesen ---
+        # ---------- Helper ----------
         def get_float(entity_id, default=0.0):
             try:
-                return float(self.hass.states.get(entity_id).state)
+                state = self.hass.states.get(entity_id)
+                if state is None:
+                    return default
+                return float(state.state)
             except Exception:
                 return default
 
+        # ---------- Basiswerte ----------
         soc = get_float("sensor.solarflow_2400_ac_electric_level")
         soc_min = get_float("input_number.zendure_soc_reserve_min", 12)
         soc_max = get_float("input_number.zendure_soc_ziel_max", 95)
@@ -46,7 +50,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
 
         battery_kwh = 5.76
 
-        # --- 2) Preisdaten aus Tibber-Datenexport ---
+        # ---------- Preisdaten ----------
         prices = []
 
         export = self.hass.states.get(
@@ -62,7 +66,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
             except Exception as err:
                 _LOGGER.warning("Preisimport fehlgeschlagen: %s", err)
 
-        # --- 3) KI berechnen ---
+        # ---------- KI berechnen ----------
         ai_result = calculate_ai_state(
             prices=prices,
             soc=soc,
@@ -74,13 +78,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator):
             expensive_threshold=expensive_threshold,
         )
 
-        # --- 4) Daten für Sensoren bereitstellen ---
+        # ---------- Ergebnis für Sensoren ----------
         return {
-            "ai_status": ai_result["ai_status"],
-            "ai_status_text": ai_result["ai_status_text"],
-            "recommendation": ai_result["recommendation"],
-            "recommendation_reason": ai_result["recommendation_reason"],
+            "ai_status": ai_result.get("ai_status"),
+            "ai_status_text": ai_result.get("ai_status_text"),
+            "recommendation": ai_result.get("recommendation"),
+            "recommendation_reason": ai_result.get("recommendation_reason"),
             "debug": ai_result.get("debug", {}),
             "debug_short": ai_result.get("debug_short", ""),
         }
-
