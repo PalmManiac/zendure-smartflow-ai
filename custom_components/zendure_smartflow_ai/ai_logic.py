@@ -1,5 +1,16 @@
 from __future__ import annotations
-
+from .const import (
+    AI_STATUS_NO_DATA,
+    AI_STATUS_EXPENSIVE_NOW_PROTECT,
+    AI_STATUS_EXPENSIVE_NOW_DISCHARGE,
+    AI_STATUS_CHARGE_FOR_PEAK,
+    AI_STATUS_WAIT_FOR_CHEAPEST,
+    AI_STATUS_IDLE,
+    RECOMMENDATION_STANDBY,
+    RECOMMENDATION_CHARGE,
+    RECOMMENDATION_DISCHARGE,
+    RECOMMENDATION_KI_CHARGE,
+)
 
 def calculate_ai_state(
     prices: list[float],
