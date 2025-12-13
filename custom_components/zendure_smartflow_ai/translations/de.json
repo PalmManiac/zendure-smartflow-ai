@@ -1,12 +1,23 @@
 {
   "state": {
-    "zendure_smartflow_ai": {
-      "NO_DATA": "Keine Preisdaten verfügbar",
-      "EXPENSIVE_NOW_PROTECT": "Hoher Preis – Akkuschutz aktiv",
-      "EXPENSIVE_NOW_DISCHARGE": "Hoher Preis – Entladen empfohlen",
-      "CHARGE_FOR_PEAK": "Laden notwendig für kommende Peakphase",
-      "WAIT_FOR_CHEAPEST": "Warten auf günstigste Preisphase",
-      "IDLE": "Keine Aktion erforderlich"
+    "ai_status": {
+      "data_missing": "Daten fehlen",
+      "no_peaks": "Keine Peaks",
+      "expensive_now_discharge": "Teuer (jetzt) – Entladen empfohlen",
+      "expensive_now_battery_protect": "Teuer (jetzt) – Akkuschutz",
+      "cheap_phase_coming": "Günstigste Phase kommt noch",
+      "cheap_phase_active": "Günstigste Phase aktiv",
+      "cheap_phase_missed": "Günstigste Phase verpasst",
+      "peak_coming_need_charge": "Peak kommt – Laden nötig",
+      "peak_coming_enough_energy": "Peak kommt – Akku reicht",
+      "battery_ok": "Akku ausreichend"
+    },
+    "recommendation": {
+      "standby": "Standby",
+      "ai_charge": "KI-Laden",
+      "charge": "Laden",
+      "discharge": "Entladen",
+      "cheap_charge": "Billig laden"
     }
   }
 }
