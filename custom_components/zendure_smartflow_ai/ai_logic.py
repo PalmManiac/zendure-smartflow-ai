@@ -1,108 +1,162 @@
 from __future__ import annotations
-from typing import List, Dict
+
+from typing import Any, Dict, List
+from statistics import mean
 
 
 def calculate_ai_state(
+    *,
     prices: List[float],
+    current_price: float,
     soc: float,
     soc_min: float,
     soc_max: float,
-    battery_kwh: float,
+    soc_emergency: float,
+    usable_kwh: float,
     max_charge_w: float,
     max_discharge_w: float,
     expensive_threshold: float,
-) -> Dict[str, object]:
+) -> Dict[str, Any]:
     """
-    Core AI logic.
-    Returns ONLY stable keys, never localized strings.
+    Zentrale KI-Entscheidungslogik für Zendure SmartFlow AI.
+
+    Liefert:
+      - ai_status        (interner KI-Zustand, technisch)
+      - recommendation  (für Steuerung / Automationen)
+      - debug            (kurzer Text, state-tauglich)
+      - details          (strukturierte Debug-Daten als Attribute)
     """
 
-    result: Dict[str, object] = {
-        "ai_status": "data_missing",
-        "recommendation": "standby",
-        "debug": {},
+    result: Dict[str, Any] = {
+        "ai_status": "idle",
+        "recommendation": "idle",
+        "debug": "OK",
+        "details": {},
+        "price_now": current_price,
+        "expensive_threshold": expensive_threshold,
     }
 
-    if not prices:
+    # ------------------------------------------------------------------
+    # 0) Grundprüfungen
+    # ------------------------------------------------------------------
+    if not prices or len(prices) < 2:
+        result["ai_status"] = "no_price_data"
+        result["recommendation"] = "idle"
+        result["debug"] = "NO_PRICE_DATA"
         return result
 
-    # --- Basic stats ---
-    current_price = prices[0]
-    min_price = min(prices)
-    max_price = max(prices)
-    avg_price = sum(prices) / len(prices)
-    span = max_price - min_price
+    future_prices = prices[:]  # ab jetzt
+    min_price = min(future_prices)
+    max_price = max(future_prices)
+    avg_price = mean(future_prices)
 
-    dynamic_expensive = max(expensive_threshold, avg_price + span * 0.25)
+    # ------------------------------------------------------------------
+    # 1) Notfall: Akku schützen (höchste Priorität)
+    # ------------------------------------------------------------------
+    if soc <= soc_emergency:
+        result["ai_status"] = "emergency"
+        result["recommendation"] = "emergency_charge"
+        result["debug"] = "EMERGENCY_CHARGE"
+        result["details"] = {
+            "reason": "soc_emergency",
+            "soc": soc,
+        }
+        return result
 
-    # --- Energy ---
-    usable_soc = max(soc - soc_min, 0)
-    usable_kwh = battery_kwh * usable_soc / 100.0
-
-    # --- Peak detection ---
-    peak_slots = [p for p in prices if p >= dynamic_expensive]
-
-    # --- Cheapest slot ---
-    cheapest_price = min_price
-    cheapest_index = prices.index(cheapest_price)
-    cheapest_future = cheapest_index > 0
-
-    # --- Peak energy demand ---
+    # ------------------------------------------------------------------
+    # 2) Peak-Analyse (intern, nicht als State!)
+    # ------------------------------------------------------------------
+    peak_slots = [p for p in future_prices if p >= expensive_threshold]
     peak_hours = len(peak_slots) * 0.25
-    discharge_kw = max_discharge_w / 1000.0
-    peak_needed_kwh = peak_hours * discharge_kw
-    missing_kwh = max(peak_needed_kwh - usable_kwh, 0)
 
-    # --- Charge time ---
-    charge_kw = (max_charge_w * 0.75) / 1000.0
-    need_minutes = (missing_kwh / charge_kw * 60) if missing_kwh > 0 else 0
-    safety_minutes = 30
+    discharge_kw = max_discharge_w / 1000.0 if max_discharge_w > 0 else 0
+    charge_kw = max_charge_w / 1000.0 if max_charge_w > 0 else 0
 
-    # --- Debug ---
-    result["debug"] = {
-        "current_price": round(current_price, 4),
-        "min_price": round(min_price, 4),
-        "max_price": round(max_price, 4),
+    needed_kwh = peak_hours * discharge_kw
+    missing_kwh = max(needed_kwh - usable_kwh, 0)
+
+    # erster Peak-Index
+    first_peak_idx = None
+    for i, p in enumerate(future_prices):
+        if p >= expensive_threshold:
+            first_peak_idx = i
+            break
+
+    minutes_to_peak = first_peak_idx * 15 if first_peak_idx is not None else None
+
+    if charge_kw > 0:
+        need_minutes = (missing_kwh / charge_kw) * 60 if missing_kwh > 0 else 0
+    else:
+        need_minutes = 0
+
+    safety_margin = 30  # Minuten
+
+    # ------------------------------------------------------------------
+    # 3) ZWANGSLADEN: Laden muss JETZT beginnen
+    # ------------------------------------------------------------------
+    if (
+        first_peak_idx is not None
+        and missing_kwh > 0
+        and minutes_to_peak is not None
+        and minutes_to_peak <= (need_minutes + safety_margin)
+        and soc < soc_max
+    ):
+        result["ai_status"] = "charge_required"
+        result["recommendation"] = "charge_now"
+        result["debug"] = "CHARGE_NOW_FOR_PEAK"
+        result["details"] = {
+            "missing_kwh": round(missing_kwh, 2),
+            "minutes_to_peak": minutes_to_peak,
+            "need_minutes": round(need_minutes, 1),
+        }
+        return result
+
+    # ------------------------------------------------------------------
+    # 4) PV-Überschuss (wird außerhalb bewertet, hier nur freigeben)
+    # ------------------------------------------------------------------
+    # → recommendation pv_charge wird im Coordinator gesetzt,
+    #   wenn Überschuss gemeldet wird
+
+    # ------------------------------------------------------------------
+    # 5) Teure Phase → Entladen sinnvoll
+    # ------------------------------------------------------------------
+    if current_price >= expensive_threshold and soc > (soc_min + 2):
+        result["ai_status"] = "expensive_now"
+        result["recommendation"] = "discharge"
+        result["debug"] = "DISCHARGE_RECOMMENDED"
+        result["details"] = {
+            "current_price": current_price,
+            "threshold": expensive_threshold,
+        }
+        return result
+
+    # ------------------------------------------------------------------
+    # 6) Warten auf günstigste Phase
+    # ------------------------------------------------------------------
+    cheapest_idx = future_prices.index(min_price)
+    cheapest_future = cheapest_idx > 0
+
+    if cheapest_future and soc < soc_max:
+        result["ai_status"] = "waiting_cheapest"
+        result["recommendation"] = "wait_for_cheapest"
+        result["debug"] = "WAIT_FOR_CHEAPEST"
+        result["details"] = {
+            "cheapest_price": min_price,
+            "minutes_to_cheapest": cheapest_idx * 15,
+        }
+        return result
+
+    # ------------------------------------------------------------------
+    # 7) Default
+    # ------------------------------------------------------------------
+    result["ai_status"] = "idle"
+    result["recommendation"] = "idle"
+    result["debug"] = "IDLE"
+    result["details"] = {
+        "min_price": min_price,
+        "max_price": max_price,
         "avg_price": round(avg_price, 4),
-        "dynamic_expensive": round(dynamic_expensive, 4),
-        "usable_kwh": round(usable_kwh, 2),
         "missing_kwh": round(missing_kwh, 2),
-        "cheapest_future": cheapest_future,
     }
 
-    # ================== DECISION TREE ==================
-
-    # 1) We are in expensive phase NOW
-    if current_price >= dynamic_expensive:
-        if soc <= soc_min:
-            result["ai_status"] = "expensive_now_battery_protect"
-            result["recommendation"] = "standby"
-        else:
-            result["ai_status"] = "expensive_now_discharge"
-            result["recommendation"] = "discharge"
-        return result
-
-    # 2) Cheapest phase still coming
-    if cheapest_future and soc < soc_max:
-        result["ai_status"] = "cheap_phase_coming"
-        result["recommendation"] = "standby"
-        return result
-
-    # 3) Cheapest phase missed
-    if not cheapest_future and soc < soc_max:
-        result["ai_status"] = "cheap_phase_missed"
-        result["recommendation"] = "ai_charge"
-        return result
-
-    # 4) Peak coming & energy missing
-    if missing_kwh > 0:
-        peak_start_minutes = prices.index(peak_slots[0]) * 15
-        if peak_start_minutes <= need_minutes + safety_minutes:
-            result["ai_status"] = "peak_coming_need_charge"
-            result["recommendation"] = "ai_charge"
-            return result
-
-    # 5) Everything fine
-    result["ai_status"] = "battery_ok"
-    result["recommendation"] = "standby"
     return result
