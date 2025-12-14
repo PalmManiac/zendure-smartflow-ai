@@ -10,17 +10,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .ai_logic import calculate_ai_state
-from .constants import (
-    DEFAULT_SOC_MAX,
-    DEFAULT_SOC_MIN,
-    MODE_AUTOMATIC,
-    OPT_MODE,
-    OPT_SOC_MAX,
-    OPT_SOC_MIN,
-)
 
 _LOGGER = logging.getLogger(__name__)
+
+FREEZE_SECONDS = 900  # 15 Minuten
 
 
 @dataclass
@@ -30,7 +23,16 @@ class EntityIds:
     load: str
     price_now: str
     price_export: str
+
+    soc_min: str
+    soc_max: str
     expensive_threshold: str
+    max_charge: str
+    max_discharge: str
+
+    ac_mode: str
+    input_limit: str
+    output_limit: str
 
 
 DEFAULT_ENTITY_IDS = EntityIds(
@@ -39,36 +41,35 @@ DEFAULT_ENTITY_IDS = EntityIds(
     load="sensor.gesamtverbrauch",
     price_now="sensor.paul_schneider_strasse_39_aktueller_strompreis_energie_dashboard",
     price_export="sensor.paul_schneider_strasse_39_diagramm_datenexport",
+    soc_min="input_number.zendure_soc_reserve_min",
+    soc_max="input_number.zendure_soc_ziel_max",
     expensive_threshold="input_number.zendure_schwelle_teuer",
+    max_charge="input_number.zendure_max_ladeleistung",
+    max_discharge="input_number.zendure_max_entladeleistung",
+    ac_mode="select.solarflow_2400_ac_ac_mode",
+    input_limit="number.solarflow_2400_ac_input_limit",
+    output_limit="number.solarflow_2400_ac_output_limit",
 )
 
 
 def _f(state: str | None, default: float = 0.0) -> float:
     try:
-        if state is None:
-            return default
-        return float(str(state).replace(",", "."))
+        return float(str(state).replace(",", ".")) if state is not None else default
     except Exception:
         return default
 
 
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Coordinator = Daten holen + Entscheidung. (Option A: KEINE aktive Steuerung)"""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
         self.entry_id = entry.entry_id
 
-        data = entry.data or {}
-        self.entities = EntityIds(
-            soc=data.get("soc_entity", DEFAULT_ENTITY_IDS.soc),
-            pv=data.get("pv_entity", DEFAULT_ENTITY_IDS.pv),
-            load=data.get("load_entity", DEFAULT_ENTITY_IDS.load),
-            price_now=data.get("price_now_entity", DEFAULT_ENTITY_IDS.price_now),
-            price_export=data.get("price_export_entity", DEFAULT_ENTITY_IDS.price_export),
-            expensive_threshold=data.get("expensive_threshold_entity", DEFAULT_ENTITY_IDS.expensive_threshold),
-        )
+        self.entities = DEFAULT_ENTITY_IDS
+
+        self._last_recommendation: str | None = None
+        self._last_recommendation_ts: float | None = None
 
         super().__init__(
             hass,
@@ -77,106 +78,112 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=10),
         )
 
-    # ---------- Options (persistente Werte) ----------
-    def get_option_float(self, key: str, fallback: float) -> float:
-        val = (self.entry.options or {}).get(key)
-        if val is None:
-            return fallback
-        try:
-            return float(val)
-        except Exception:
-            return fallback
-
-    def get_option_str(self, key: str, fallback: str) -> str:
-        val = (self.entry.options or {}).get(key)
-        return fallback if val is None else str(val)
-
-    async def set_option(self, key: str, value: Any) -> None:
-        options = dict(self.entry.options or {})
-        options[key] = value
-        self.hass.config_entries.async_update_entry(self.entry, options=options)
-        await self.async_request_refresh()
-
-    # ---------- HA State Helper ----------
-    def _get_state(self, entity_id: str) -> str | None:
-        st = self.hass.states.get(entity_id)
+    def _state(self, eid: str) -> str | None:
+        st = self.hass.states.get(eid)
         return None if st is None else st.state
 
-    def _get_attr(self, entity_id: str, attr: str) -> Any:
-        st = self.hass.states.get(entity_id)
-        if st is None:
-            return None
-        return st.attributes.get(attr)
+    def _attr(self, eid: str, attr: str) -> Any:
+        st = self.hass.states.get(eid)
+        return None if st is None else st.attributes.get(attr)
 
-    # ---------- Preise ----------
-    def _extract_prices(self) -> list[float]:
-        """
-        Tibber Datenexport:
-          attributes.data = [{start_time:..., price_per_kwh: 0.287}, ...]
-        """
-        export = self._get_attr(self.entities.price_export, "data")
+    def _prices(self) -> list[float]:
+        export = self._attr(self.entities.price_export, "data")
         if not export:
             return []
-        prices: list[float] = []
-        try:
-            for item in export:
-                p = item.get("price_per_kwh")
-                prices.append(_f(p, 0.0))
-        except Exception:
-            return []
-        return prices
+        return [_f(i.get("price_per_kwh"), 0.0) for i in export]
 
-    def _idx_now_15min(self) -> int:
+    def _idx_now(self) -> int:
         now = dt_util.now()
-        minutes = now.hour * 60 + now.minute
-        return int(minutes // 15)
+        return (now.hour * 60 + now.minute) // 15
+
+    def _allow_change(self, new: str, force: bool) -> bool:
+        if force:
+            return True
+        if self._last_recommendation is None:
+            return True
+        if new != self._last_recommendation:
+            if self._last_recommendation_ts is None:
+                return True
+            age = dt_util.utcnow().timestamp() - self._last_recommendation_ts
+            return age >= FREEZE_SECONDS
+        return False
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            # --- Livewerte ---
-            soc = _f(self._get_state(self.entities.soc), 0.0)
-            pv = _f(self._get_state(self.entities.pv), 0.0)
-            load = _f(self._get_state(self.entities.load), 0.0)
-            price_now = _f(self._get_state(self.entities.price_now), 0.0)
+            soc = _f(self._state(self.entities.soc))
+            pv = _f(self._state(self.entities.pv))
+            load = _f(self._state(self.entities.load))
+            price_now = _f(self._state(self.entities.price_now))
 
-            expensive_threshold_fixed = _f(self._get_state(self.entities.expensive_threshold), 0.35)
+            soc_min = _f(self._state(self.entities.soc_min), 12)
+            soc_max = _f(self._state(self.entities.soc_max), 95)
+            soc_notfall = max(soc_min - 4, 5)
 
-            # --- Optionen (Integration-eigene Werte) ---
-            # Fallback: wenn keine Optionen gesetzt sind, nutzen wir "deine alten Helper" NICHT hier,
-            # sondern Defaultwerte. (Damit keine Doppel-Entitäten/Flattern entstehen.)
-            soc_min = self.get_option_float(OPT_SOC_MIN, DEFAULT_SOC_MIN)
-            soc_max = self.get_option_float(OPT_SOC_MAX, DEFAULT_SOC_MAX)
-            mode = self.get_option_str(OPT_MODE, MODE_AUTOMATIC)
+            expensive_fixed = _f(self._state(self.entities.expensive_threshold), 0.35)
 
-            # --- Preisreihe / Future ---
-            prices_all = self._extract_prices()
-            idx = self._idx_now_15min()
-            future = prices_all[idx:] if idx < len(prices_all) else []
+            prices = self._prices()
+            idx = self._idx_now()
+            future = prices[idx:] if idx < len(prices) else []
 
-            ai_result = calculate_ai_state(
-                soc=soc,
-                soc_min=soc_min,
-                soc_max=soc_max,
-                pv=pv,
-                load=load,
-                price_now=price_now,
-                future_prices=future,
-                expensive_threshold_fixed=expensive_threshold_fixed,
-                mode=mode,
-            )
+            if future:
+                minp = min(future)
+                maxp = max(future)
+                avg = sum(future) / len(future)
+                span = maxp - minp
+                expensive = max(expensive_fixed, avg + span * 0.25)
+            else:
+                minp = maxp = avg = price_now
+                expensive = expensive_fixed
 
-            # Option A: KEINE aktive Steuerung (keine Services!)
+            ai_status = "standby"
+            recommendation = "standby"
+            force_change = False
+
+            if soc <= soc_notfall:
+                ai_status = "notladung"
+                recommendation = "billig_laden"
+                force_change = True
+
+            elif price_now >= expensive:
+                if soc <= soc_min:
+                    ai_status = "teuer_akkuschutz"
+                    recommendation = "standby"
+                else:
+                    ai_status = "teuer_entladen"
+                    recommendation = "entladen"
+                force_change = True
+
+            elif future and future[0] == min(future) and soc < soc_max:
+                ai_status = "günstig_jetzt"
+                recommendation = "ki_laden"
+
+            elif pv - load > 80 and soc < soc_max:
+                ai_status = "pv_laden"
+                recommendation = "laden"
+
+            if not self._allow_change(recommendation, force_change):
+                recommendation = self._last_recommendation or recommendation
+
+            if recommendation != self._last_recommendation:
+                self._last_recommendation = recommendation
+                self._last_recommendation_ts = dt_util.utcnow().timestamp()
+
             return {
-                "ai_status": ai_result.get("ai_status", "standby"),
-                "recommendation": ai_result.get("recommendation", "standby"),
-                "debug": ai_result.get("debug", "OK"),
-                "details": ai_result.get("details", {}),
-                "price_now": ai_result.get("price_now"),
-                "expensive_threshold": ai_result.get("expensive_threshold"),
-                "mode": mode,
-                "soc_min": soc_min,
-                "soc_max": soc_max,
+                "ai_status": ai_status,
+                "recommendation": recommendation,
+                "debug": "OK",
+                "details": {
+                    "price_now": price_now,
+                    "min_price": minp,
+                    "max_price": maxp,
+                    "avg_price": avg,
+                    "expensive": expensive,
+                    "soc": soc,
+                    "soc_min": soc_min,
+                    "soc_max": soc_max,
+                    "freeze_seconds": FREEZE_SECONDS,
+                },
             }
 
         except Exception as err:
-            raise UpdateFailed(f"Update failed: {err}") from err
+            raise UpdateFailed(err)
