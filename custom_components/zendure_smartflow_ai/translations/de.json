@@ -1,20 +1,26 @@
 {
-  "state": {
-    "ai_status": {
-      "data_missing": "Preisdaten fehlen",
-      "expensive_now_discharge": "Teuer (jetzt) – Entladen empfohlen",
-      "expensive_now_battery_protect": "Teuer (jetzt) – Akkuschutz",
-      "cheap_phase_coming": "Günstigste Phase kommt noch",
-      "cheap_phase_missed": "Günstigste Phase verpasst",
-      "peak_coming_need_charge": "Peak kommt – Laden notwendig",
-      "battery_ok": "Akku ausreichend geladen"
+  "entity": {
+    "sensor": {
+      "ai_status": {
+        "name": "Zendure KI-Status"
+      },
+      "recommendation": {
+        "name": "Zendure Steuerungsempfehlung"
+      },
+      "debug": {
+        "name": "Zendure Debug"
+      }
     },
-    "recommendation": {
-      "standby": "Standby",
-      "ai_charge": "KI-Laden",
-      "charge": "Laden",
-      "discharge": "Entladen",
-      "cheap_charge": "Billig laden"
+    "select": {
+      "mode": {
+        "name": "Zendure Betriebsmodus",
+        "state": {
+          "automatic": "Automatik",
+          "summer": "Sommer",
+          "winter": "Winter",
+          "manual": "Manuell"
+        }
+      }
     }
   }
 }
