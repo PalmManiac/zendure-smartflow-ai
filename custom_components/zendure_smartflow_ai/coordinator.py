@@ -35,6 +35,8 @@ class EntityIds:
     input_limit: str
     output_limit: str
 
+# in _async_update_data() oder beim Initialisieren
+data.setdefault("mode", MODE_AUTOMATIC)
 
 DEFAULT_ENTITY_IDS = EntityIds(
     soc="sensor.solarflow_2400_ac_electric_level",
