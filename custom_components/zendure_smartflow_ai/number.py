@@ -33,9 +33,10 @@ class _BaseZendureNumber(NumberEntity):
         self.entry = entry
 
 
-class ZendureSocMin(_BaseZendureNumber):
+class ZendureSocMin(NumberEntity):
     _attr_name = "Zendure SoC Minimum"
     _attr_icon = "mdi:battery-alert"
+    _attr_mode = NumberMode.SLIDER
     _attr_native_min_value = 5
     _attr_native_max_value = 50
     _attr_native_step = 1
@@ -53,9 +54,10 @@ class ZendureSocMin(_BaseZendureNumber):
         self.async_write_ha_state()
 
 
-class ZendureSocMax(_BaseZendureNumber):
+class ZendureSocMax(NumberEntity):
     _attr_name = "Zendure SoC Maximum"
     _attr_icon = "mdi:battery-high"
+    _attr_mode = NumberMode.SLIDER
     _attr_native_min_value = 50
     _attr_native_max_value = 100
     _attr_native_step = 1
