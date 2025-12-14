@@ -1,22 +1,22 @@
-"""Konstanten für Zendure SmartFlow AI."""
-
 DOMAIN = "zendure_smartflow_ai"
 
-# Betriebsmodi
+PLATFORMS = ["sensor", "select", "number"]
+
+# Betriebsmodi (intern)
 MODE_AUTOMATIC = "automatic"
 MODE_SUMMER = "summer"
 MODE_WINTER = "winter"
 MODE_MANUAL = "manual"
 
-ALL_MODES = [
-    MODE_AUTOMATIC,
-    MODE_SUMMER,
-    MODE_WINTER,
-    MODE_MANUAL,
-]
+# Anzeige-Optionen im Select
+MODES = {
+    MODE_AUTOMATIC: "Automatik",
+    MODE_SUMMER: "Sommer",
+    MODE_WINTER: "Winter",
+    MODE_MANUAL: "Manuell",
+}
 
-# Alias für ältere Imports (select.py erwartet MODES)
-MODES = ALL_MODES
+DEFAULT_MODE = MODE_AUTOMATIC
 
-# Update-Intervall (Sekunden)
-DEFAULT_UPDATE_INTERVAL = 10
+DEFAULT_SOC_MIN = 12.0
+DEFAULT_SOC_MAX = 100.0
