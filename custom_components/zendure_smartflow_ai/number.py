@@ -42,7 +42,7 @@ class ZendureSocMinNumber(_BaseZendureNumber):
 
     def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_soc_min"
+        self._attr_unique_id = f"{entry.entry_id}_internal_soc_min"
 
     @property
     def native_value(self) -> float:
@@ -50,9 +50,8 @@ class ZendureSocMinNumber(_BaseZendureNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         value = float(value)
-        # Sicherstellen: soc_min < soc_max
         if self.coordinator.soc_max is not None and value >= self.coordinator.soc_max:
-            value = max(0.0, float(self.coordinator.soc_max) - 0.5)
+            value = max(0.0, self.coordinator.soc_max - 0.5)
         await self._persist("soc_min", value)
 
 
@@ -62,7 +61,7 @@ class ZendureSocMaxNumber(_BaseZendureNumber):
 
     def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_soc_max"
+        self._attr_unique_id = f"{entry.entry_id}_internal_soc_max"
 
     @property
     def native_value(self) -> float:
@@ -70,7 +69,6 @@ class ZendureSocMaxNumber(_BaseZendureNumber):
 
     async def async_set_native_value(self, value: float) -> None:
         value = float(value)
-        # Sicherstellen: soc_max > soc_min
         if self.coordinator.soc_min is not None and value <= self.coordinator.soc_min:
-            value = min(100.0, float(self.coordinator.soc_min) + 0.5)
+            value = min(100.0, self.coordinator.soc_min + 0.5)
         await self._persist("soc_max", value)
