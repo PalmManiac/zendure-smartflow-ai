@@ -35,8 +35,6 @@ class EntityIds:
     input_limit: str
     output_limit: str
 
-# in _async_update_data() oder beim Initialisieren
-data.setdefault("mode", MODE_AUTOMATIC)
 
 DEFAULT_ENTITY_IDS = EntityIds(
     soc="sensor.solarflow_2400_ac_electric_level",
@@ -223,6 +221,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             load = _f(self._get_state(self.entities.load), 0.0)
             price_now = _f(self._get_state(self.entities.price_now), 0.0)
 
+            data.setdefault("mode", MODE_AUTOMATIC)
+            
             soc_min = _f(self._get_state(self.entities.soc_min), 12.0)
             soc_max = _f(self._get_state(self.entities.soc_max), 95.0)
 
