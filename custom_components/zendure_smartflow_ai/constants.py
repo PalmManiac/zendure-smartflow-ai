@@ -15,5 +15,8 @@ ALL_MODES = [
     MODE_MANUAL,
 ]
 
+# Alias für ältere Imports (select.py erwartet MODES)
+MODES = ALL_MODES
+
 # Update-Intervall (Sekunden)
 DEFAULT_UPDATE_INTERVAL = 10
