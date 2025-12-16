@@ -12,13 +12,16 @@ from homeassistant.util import dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
 
-UPDATE_INTERVAL = 10
-FREEZE_SECONDS = 120
+UPDATE_INTERVAL = 10          # Sekunden
+FREEZE_SECONDS = 120          # Recommendation-Freeze (nur Anzeige!)
 
-# 🔒 HARTE Notfallgrenze – unabhängig von soc_min!
-EMERGENCY_SOC = 10.0
+EMERGENCY_OFFSET = 4          # % unter soc_min
+EMERGENCY_MIN = 5             # niemals unter 5 %
 
 
+# =========================
+# Entity IDs
+# =========================
 @dataclass
 class EntityIds:
     soc: str
@@ -55,27 +58,33 @@ DEFAULT_ENTITY_IDS = EntityIds(
 )
 
 
+# =========================
+# Helper
+# =========================
 def _f(state: str | None, default: float = 0.0) -> float:
     try:
+        if state is None:
+            return default
         return float(str(state).replace(",", "."))
     except Exception:
         return default
 
 
+# =========================
+# Coordinator
+# =========================
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+        self.entry_id = entry.entry_id
         self.entities = DEFAULT_ENTITY_IDS
 
+        # Recommendation-Freeze (NUR TEXT)
         self._freeze_until: datetime | None = None
         self._last_recommendation: str | None = None
         self._last_ai_status: str | None = None
-
-        self._last_set_mode: str | None = None
-        self._last_set_in: float | None = None
-        self._last_set_out: float | None = None
 
         super().__init__(
             hass,
@@ -84,51 +93,53 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
-    def _state(self, entity: str) -> str | None:
-        s = self.hass.states.get(entity)
+    # -------------------------
+    # State helpers
+    # -------------------------
+    def _state(self, entity_id: str) -> str | None:
+        s = self.hass.states.get(entity_id)
         return None if s is None else s.state
 
-    async def _set_mode(self, mode: str):
-        if mode != self._last_set_mode:
-            await self.hass.services.async_call(
-                "select",
-                "select_option",
-                {"entity_id": self.entities.ac_mode, "option": mode},
-                blocking=False,
-            )
-            self._last_set_mode = mode
+    async def _set_ac_mode(self, mode: str) -> None:
+        await self.hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": self.entities.ac_mode, "option": mode},
+            blocking=False,
+        )
 
-    async def _set_input(self, watts: float):
-        if self._last_set_in is None or abs(self._last_set_in - watts) > 25:
-            await self.hass.services.async_call(
-                "number",
-                "set_value",
-                {"entity_id": self.entities.input_limit, "value": round(watts, 0)},
-                blocking=False,
-            )
-            self._last_set_in = watts
+    async def _set_input(self, watts: float) -> None:
+        await self.hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": self.entities.input_limit, "value": round(watts, 0)},
+            blocking=False,
+        )
 
-    async def _set_output(self, watts: float):
-        if self._last_set_out is None or abs(self._last_set_out - watts) > 25:
-            await self.hass.services.async_call(
-                "number",
-                "set_value",
-                {"entity_id": self.entities.output_limit, "value": round(watts, 0)},
-                blocking=False,
-            )
-            self._last_set_out = watts
+    async def _set_output(self, watts: float) -> None:
+        await self.hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": self.entities.output_limit, "value": round(watts, 0)},
+            blocking=False,
+        )
 
+    # =========================
+    # Main update
+    # =========================
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             now = dt_util.utcnow()
 
+            # --- Basiswerte ---
             soc = _f(self._state(self.entities.soc))
             pv = _f(self._state(self.entities.pv))
             load = _f(self._state(self.entities.load))
-            price = _f(self._state(self.entities.price_now))
+            price_now = _f(self._state(self.entities.price_now))
 
             soc_min = _f(self._state(self.entities.soc_min), 12)
             soc_max = _f(self._state(self.entities.soc_max), 95)
+
             expensive = _f(self._state(self.entities.expensive_threshold), 0.35)
 
             max_charge = _f(self._state(self.entities.max_charge), 2000)
@@ -136,35 +147,47 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             surplus = max(pv - load, 0)
 
+            # --- Grenzen ---
+            soc_notfall = max(soc_min - EMERGENCY_OFFSET, EMERGENCY_MIN)
+
+            # =========================
+            # Entscheidungslogik (FIX)
+            # =========================
             ai_status = "standby"
             recommendation = "standby"
 
-            mode = "input"
+            ac_mode: str | None = None
             in_w = 0.0
             out_w = 0.0
 
-            # 🔥 1) TEUER → ENTLADE (höchste Priorität)
-            if price >= expensive and soc > soc_min:
+            # 🔥 1) TEUER → IMMER ENTLADE (höchste Priorität)
+            if price_now >= expensive and soc > soc_min:
                 ai_status = "teuer_jetzt"
                 recommendation = "entladen"
-                mode = "output"
+                ac_mode = "output"
                 out_w = min(max_discharge, max(load - pv, 0))
+                in_w = 0
 
-            # 🔋 2) NOTFALL – nur bei <10 %
-            elif soc <= EMERGENCY_SOC:
+            # 🔋 2) NOTLADEN (nur bei echtem Notfall)
+            elif soc <= soc_notfall:
                 ai_status = "notladung"
                 recommendation = "billig_laden"
-                mode = "input"
+                ac_mode = "input"
                 in_w = min(max_charge, 300)
+                out_w = 0
 
             # ☀️ 3) PV-Überschuss
             elif surplus > 80 and soc < soc_max:
                 ai_status = "pv_laden"
                 recommendation = "laden"
-                mode = "input"
+                ac_mode = "input"
                 in_w = min(max_charge, surplus)
+                out_w = 0
 
-            # 🧊 Freeze nur für Anzeige
+            # =========================
+            # Recommendation-Freeze
+            # (NUR Anzeige, KEINE Hardware!)
+            # =========================
             if self._freeze_until and now < self._freeze_until:
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
@@ -173,27 +196,41 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
 
-            # Hardware nur wenn sinnvoll
-            await self._set_mode(mode)
-            await self._set_input(in_w)
-            await self._set_output(out_w)
+            # =========================
+            # Hardware anwenden
+            # =========================
+            if ac_mode == "output":
+                await self._set_ac_mode("output")
+                await self._set_output(out_w)
+                await self._set_input(0)
+
+            elif ac_mode == "input":
+                await self._set_ac_mode("input")
+                await self._set_input(in_w)
+                await self._set_output(0)
+
+            # Standby → nichts anfassen
 
             return {
                 "ai_status": ai_status,
                 "recommendation": recommendation,
                 "debug": "OK",
                 "details": {
-                    "price": price,
+                    "price_now": price_now,
                     "expensive_threshold": expensive,
                     "soc": soc,
                     "soc_min": soc_min,
+                    "soc_max": soc_max,
+                    "soc_notfall": soc_notfall,
                     "pv": pv,
                     "load": load,
-                    "set_mode": mode,
-                    "set_input_w": in_w,
-                    "set_output_w": out_w,
+                    "surplus": surplus,
+                    "set_mode": ac_mode,
+                    "set_input_w": round(in_w, 0),
+                    "set_output_w": round(out_w, 0),
+                    "freeze_until": self._freeze_until.isoformat() if self._freeze_until else None,
                 },
             }
 
         except Exception as err:
-            raise UpdateFailed(str(err)) from err
+            raise UpdateFailed(f"Update failed: {err}") from err
