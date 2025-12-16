@@ -10,14 +10,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
+
 _LOGGER = logging.getLogger(__name__)
 
-UPDATE_INTERVAL = 10
-FREEZE_SECONDS = 120
-
+UPDATE_INTERVAL = 10          # Sekunden
+FREEZE_SECONDS = 120          # Recommendation-Freeze (wird bei "teuer_jetzt" nicht blockierend angewendet)
 
 # =========================
-# Entity IDs
+# Entity IDs (werden bei Installation pro User gespeichert)
 # =========================
 @dataclass
 class EntityIds:
@@ -25,14 +25,18 @@ class EntityIds:
     pv: str
     load: str
 
-    price_export: str
+    # Preisquellen (wichtig!)
+    price_export: str          # Tibber "Datenexport für Dashboard-Integrationen"
+    price_now_fallback: str    # optionaler Fallback, falls Export fehlt (muss numeric sein)
 
+    # interne Regler (kommen aus deiner Integration als number/select)
     soc_min: str
     soc_max: str
     expensive_threshold: str
     max_charge: str
     max_discharge: str
 
+    # Zendure Steuer-Entitäten
     ac_mode: str
     input_limit: str
     output_limit: str
@@ -43,7 +47,10 @@ DEFAULT_ENTITY_IDS = EntityIds(
     pv="sensor.sb2_5_1vl_40_401_pv_power",
     load="sensor.gesamtverbrauch",
 
-    price_export="",
+    # WICHTIG: Export ist die echte Preisquelle (State ist ready/pending, Preis steckt in attributes.data[])
+    price_export="sensor.paul_schneider_strasse_39_diagramm_datenexport",
+    # optionaler Fallback (wenn vorhanden und numeric). Kann auch irgendein Preis-Sensor sein.
+    price_now_fallback="sensor.paul_schneider_strasse_39_aktueller_strompreis_energie_dashboard",
 
     soc_min="number.zendure_soc_min",
     soc_max="number.zendure_soc_max",
@@ -60,11 +67,17 @@ DEFAULT_ENTITY_IDS = EntityIds(
 # =========================
 # Helper
 # =========================
-def _f(val: Any, default: float = 0.0) -> float:
+def _to_float(v: Any) -> float | None:
+    """Robustes float parsing. Gibt None zurück bei unknown/unavailable/nicht numeric."""
+    if v is None:
+        return None
+    s = str(v).strip().lower()
+    if s in ("unknown", "unavailable", "none", ""):
+        return None
     try:
-        return float(str(val).replace(",", "."))
+        return float(str(v).replace(",", "."))
     except Exception:
-        return default
+        return None
 
 
 # =========================
@@ -77,15 +90,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
         self.entry_id = entry.entry_id
 
+        # Entity IDs aus ConfigEntry lesen (wichtig: bei deinem Bekannten andere Namen!)
         data = entry.data or {}
-
-        # ✅ Entity-IDs aus ConfigFlow (oder Fallback)
         self.entities = EntityIds(
             soc=data.get("soc_entity", DEFAULT_ENTITY_IDS.soc),
             pv=data.get("pv_entity", DEFAULT_ENTITY_IDS.pv),
             load=data.get("load_entity", DEFAULT_ENTITY_IDS.load),
 
-            price_export=data.get("price_export_entity", ""),
+            price_export=data.get("price_export_entity", DEFAULT_ENTITY_IDS.price_export),
+            price_now_fallback=data.get("price_now_entity", DEFAULT_ENTITY_IDS.price_now_fallback),
 
             soc_min=data.get("soc_min_entity", DEFAULT_ENTITY_IDS.soc_min),
             soc_max=data.get("soc_max_entity", DEFAULT_ENTITY_IDS.soc_max),
@@ -103,6 +116,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_recommendation: str | None = None
         self._last_ai_status: str | None = None
 
+        # Anti-Flattern / Service-Spam
+        self._last_set_mode: str | None = None
+        self._last_set_in: float | None = None
+        self._last_set_out: float | None = None
+
         super().__init__(
             hass,
             _LOGGER,
@@ -119,33 +137,57 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _attr(self, entity_id: str, attr: str) -> Any:
         s = self.hass.states.get(entity_id)
-        return None if s is None else s.attributes.get(attr)
+        if s is None:
+            return None
+        return s.attributes.get(attr)
 
     # -------------------------
-    # Preis aus Datenexport
+    # Preis aus Export berechnen
     # -------------------------
-    def _current_price(self) -> tuple[float | None, int]:
-        if not self.entities.price_export:
-            return None, 0
-
+    def _extract_prices_from_export(self) -> tuple[list[float], str | None]:
+        """
+        Export-Sensor:
+          attributes.data = [{start_time:..., price_per_kwh: 0.287}, ...]
+        State ist meist ready/pending und NICHT der Preis.
+        """
         export = self._attr(self.entities.price_export, "data")
         if not export:
-            return None, 0
+            return [], "EXPORT_EMPTY"
 
-        prices = [_f(e.get("price_per_kwh")) for e in export]
+        prices: list[float] = []
+        try:
+            for row in export:
+                p = _to_float(row.get("price_per_kwh"))
+                if p is None:
+                    # überspringen, aber nicht crashen
+                    continue
+                prices.append(p)
+        except Exception:
+            return [], "EXPORT_PARSE_ERROR"
 
-        now = dt_util.now()
-        idx = (now.hour * 60 + now.minute) // 15
+        if not prices:
+            return [], "EXPORT_NO_NUMERIC"
+        return prices, None
 
-        if idx >= len(prices):
+    def _idx_now_15min_local(self) -> int:
+        """Index ab lokaler Mitternacht (Export startet 00:00 Lokalzeit)."""
+        now_local = dt_util.now()
+        minutes = (now_local.hour * 60) + now_local.minute
+        return int(minutes // 15)
+
+    def _price_now_from_export(self, prices_all: list[float]) -> tuple[float | None, int | None]:
+        """Preis im aktuellen Slot aus Export (lokale Zeit)."""
+        if not prices_all:
+            return None, None
+        idx = self._idx_now_15min_local()
+        if idx < 0 or idx >= len(prices_all):
             return None, idx
-
-        return prices[idx], idx
+        return prices_all[idx], idx
 
     # -------------------------
-    # Hardware control
+    # Hardware calls (mit Anti-Spam)
     # -------------------------
-    async def _set_mode(self, mode: str) -> None:
+    async def _set_ac_mode(self, mode: str) -> None:
         await self.hass.services.async_call(
             "select",
             "select_option",
@@ -157,7 +199,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.input_limit, "value": round(watts, 0)},
+            {"entity_id": self.entities.input_limit, "value": float(round(watts, 0))},
             blocking=False,
         )
 
@@ -165,76 +207,193 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         await self.hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": self.entities.output_limit, "value": round(watts, 0)},
+            {"entity_id": self.entities.output_limit, "value": float(round(watts, 0))},
             blocking=False,
         )
+
+    async def _apply_hw(self, mode: str, in_w: float, out_w: float) -> None:
+        """
+        Nur anwenden, wenn sich etwas "wirklich" geändert hat.
+        -> verhindert Flackern und dass dein manueller Test sofort wieder überschrieben wird,
+           wenn sich gar kein Sollwert ändert.
+        """
+        def changed(prev: float | None, new: float, tol: float = 25.0) -> bool:
+            if prev is None:
+                return True
+            return abs(prev - new) > tol
+
+        # Mode
+        if mode != self._last_set_mode:
+            await self._set_ac_mode(mode)
+            self._last_set_mode = mode
+
+        # Limits
+        if changed(self._last_set_in, in_w):
+            await self._set_input(in_w)
+            self._last_set_in = in_w
+
+        if changed(self._last_set_out, out_w):
+            await self._set_output(out_w)
+            self._last_set_out = out_w
 
     # =========================
     # Main update
     # =========================
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            now = dt_util.utcnow()
+            now_utc = dt_util.utcnow()
 
-            soc = _f(self._state(self.entities.soc))
-            pv = _f(self._state(self.entities.pv))
-            load = _f(self._state(self.entities.load))
+            # --- Basiswerte ---
+            soc = _to_float(self._state(self.entities.soc))
+            pv = _to_float(self._state(self.entities.pv)) or 0.0
+            load = _to_float(self._state(self.entities.load)) or 0.0
 
-            soc_min = _f(self._state(self.entities.soc_min), 12)
-            soc_max = _f(self._state(self.entities.soc_max), 95)
+            # Regler
+            soc_min = _to_float(self._state(self.entities.soc_min))
+            soc_max = _to_float(self._state(self.entities.soc_max))
+            expensive_fixed = _to_float(self._state(self.entities.expensive_threshold))
+            max_charge = _to_float(self._state(self.entities.max_charge))
+            max_discharge = _to_float(self._state(self.entities.max_discharge))
 
-            expensive = _f(self._state(self.entities.expensive_threshold), 0.35)
-            max_charge = _f(self._state(self.entities.max_charge), 2000)
-            max_discharge = _f(self._state(self.entities.max_discharge), 700)
+            # Defaults, falls jemand frisch installiert
+            soc_min = soc_min if soc_min is not None else 12.0
+            soc_max = soc_max if soc_max is not None else 95.0
+            expensive_fixed = expensive_fixed if expensive_fixed is not None else 0.35
+            max_charge = max_charge if max_charge is not None else 2000.0
+            max_discharge = max_discharge if max_discharge is not None else 700.0
 
-            surplus = max(pv - load, 0)
-            soc_notfall = max(soc_min - 4, 5)
-
-            price_now, idx = self._current_price()
-            if price_now is None:
+            # SoC muss valide sein, sonst keine Steuerung
+            if soc is None:
                 return {
-                    "ai_status": "preis_unbekannt",
+                    "ai_status": "datenproblem_soc",
                     "recommendation": "standby",
-                    "debug": "PRICE_INVALID",
+                    "debug": "SOC_INVALID",
+                    "details": {
+                        "soc_raw": self._state(self.entities.soc),
+                    },
                 }
 
+            # --- Preise: primär aus Export ---
+            prices_all, export_err = self._extract_prices_from_export()
+            price_now, idx_now = self._price_now_from_export(prices_all)
+
+            # Fallback: nur wenn Export nicht nutzbar ODER aktueller Slot nicht erreichbar
+            if price_now is None:
+                fallback = _to_float(self._state(self.entities.price_now_fallback))
+                if fallback is not None:
+                    price_now = fallback
+
+            # Wenn immer noch kein Preis -> standby (keine dummen Aktionen)
+            if price_now is None:
+                return {
+                    "ai_status": "datenproblem_preisquelle",
+                    "recommendation": "standby",
+                    "debug": export_err or "PRICE_INVALID",
+                    "details": {
+                        "price_export_entity": self.entities.price_export,
+                        "price_now_entity": self.entities.price_now_fallback,
+                        "price_now_raw": self._state(self.entities.price_now_fallback),
+                        "export_state": self._state(self.entities.price_export),
+                        "idx_now": idx_now,
+                        "prices_len": len(prices_all),
+                    },
+                }
+
+            # Zukunftsliste (ab jetzt)
+            future = []
+            if prices_all and idx_now is not None and 0 <= idx_now < len(prices_all):
+                future = prices_all[idx_now:]
+            else:
+                future = []
+
+            # Dynamische Schwelle (optional) + feste Schwelle
+            if future:
+                minp = min(future)
+                maxp = max(future)
+                avgp = sum(future) / len(future)
+                span = maxp - minp
+                expensive_dyn = avgp + span * 0.25
+                expensive = max(expensive_fixed, expensive_dyn)
+            else:
+                minp = price_now
+                maxp = price_now
+                avgp = price_now
+                span = 0.0
+                expensive_dyn = expensive_fixed
+                expensive = expensive_fixed
+
+            # PV Überschuss
+            surplus = max(pv - load, 0.0)
+
+            # Grenzen
+            soc_notfall = max(soc_min - 4.0, 5.0)
+
             # =========================
-            # Entscheidung
+            # Entscheidungslogik (Core)
             # =========================
             ai_status = "standby"
             recommendation = "standby"
-            mode = "input"
+
+            ac_mode = "input"
             in_w = 0.0
             out_w = 0.0
 
-            if soc <= soc_notfall:
+            # 1) TEUER -> ENTLADE (wenn SoC > Reserve)
+            #    (Das ist genau der Teil, der bei dir wegen price_now=0 NIE getriggert hat.)
+            if price_now >= expensive:
+                if soc <= soc_min:
+                    ai_status = "teuer_akkuschutz"
+                    recommendation = "standby"
+                    ac_mode = "input"
+                    in_w = 0.0
+                    out_w = 0.0
+                else:
+                    ai_status = "teuer_jetzt"
+                    recommendation = "entladen"
+                    ac_mode = "output"
+                    need = max(load - pv, 0.0)
+                    out_w = min(max_discharge, need)
+                    in_w = 0.0
+
+            # 2) NOTFALL (nur wenn wirklich tief)
+            elif soc <= soc_notfall and soc < soc_max:
                 ai_status = "notladung"
                 recommendation = "billig_laden"
-                in_w = min(max_charge, 300)
+                ac_mode = "input"
+                in_w = min(max_charge, 300.0)
+                out_w = 0.0
+                # Notfall soll Freeze NICHT konservieren
+                self._freeze_until = None
 
-            elif price_now >= expensive and soc > soc_min:
-                ai_status = "teuer_jetzt"
-                recommendation = "entladen"
-                mode = "output"
-                out_w = min(max_discharge, max(load - pv, 0))
-
+            # 3) PV-Überschuss
             elif surplus > 80 and soc < soc_max:
                 ai_status = "pv_laden"
                 recommendation = "laden"
+                ac_mode = "input"
                 in_w = min(max_charge, surplus)
+                out_w = 0.0
 
-            # Freeze
-            if self._freeze_until and now < self._freeze_until:
+            # else standby bleibt
+
+            # =========================
+            # Recommendation Freeze
+            # =========================
+            # WICHTIG: "teuer_jetzt" darf NICHT durch Freeze weggedrückt werden,
+            # sonst stehst du wieder bei 0.37€ auf standby.
+            freeze_blockable = ai_status not in ("teuer_jetzt", "teuer_akkuschutz", "notladung")
+
+            if freeze_blockable and self._freeze_until and now_utc < self._freeze_until:
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
             else:
-                self._freeze_until = now + timedelta(seconds=FREEZE_SECONDS)
+                self._freeze_until = now_utc + timedelta(seconds=FREEZE_SECONDS)
                 self._last_ai_status = ai_status
                 self._last_recommendation = recommendation
 
-            await self._set_mode(mode)
-            await self._set_input(in_w)
-            await self._set_output(out_w)
+            # =========================
+            # Hardware anwenden
+            # =========================
+            await self._apply_hw(ac_mode, in_w, out_w)
 
             return {
                 "ai_status": ai_status,
@@ -242,14 +401,31 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "debug": "OK",
                 "details": {
                     "price_now": round(price_now, 4),
-                    "price_index": idx,
-                    "soc": soc,
-                    "surplus": surplus,
-                    "set_mode": mode,
+                    "expensive_threshold_fixed": round(expensive_fixed, 4),
+                    "expensive_threshold_dynamic": round(expensive_dyn, 4),
+                    "expensive_threshold_effective": round(expensive, 4),
+                    "idx_now": idx_now,
+                    "future_len": len(future),
+                    "min_price_future": round(minp, 4),
+                    "max_price_future": round(maxp, 4),
+                    "avg_price_future": round(avgp, 4),
+                    "soc": round(soc, 2),
+                    "soc_min": round(soc_min, 2),
+                    "soc_max": round(soc_max, 2),
+                    "soc_notfall": round(soc_notfall, 2),
+                    "pv": round(pv, 1),
+                    "load": round(load, 1),
+                    "surplus": round(surplus, 1),
+                    "max_charge": round(max_charge, 0),
+                    "max_discharge": round(max_discharge, 0),
+                    "set_mode": ac_mode,
                     "set_input_w": round(in_w, 0),
                     "set_output_w": round(out_w, 0),
+                    "freeze_until": self._freeze_until.isoformat() if self._freeze_until else None,
+                    "export_state": self._state(self.entities.price_export),
+                    "export_err": export_err,
                 },
             }
 
         except Exception as err:
-            raise UpdateFailed(str(err)) from err
+            raise UpdateFailed(f"Update failed: {err}") from err
