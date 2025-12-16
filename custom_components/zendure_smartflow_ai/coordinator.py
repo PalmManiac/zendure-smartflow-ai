@@ -195,7 +195,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 mode = "input"
                 in_w = min(max_charge, 300)
 
-            elif price_now >= expensive and soc > soc_min:
+            elif price_now >= expensive_fixed and soc > soc_min:
                 ai_status = "teuer_jetzt"
                 recommendation = "entladen"
                 mode = "output"
