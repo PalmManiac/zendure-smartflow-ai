@@ -17,6 +17,31 @@ FREEZE_SECONDS = 120
 
 
 # =========================
+# Defaults (falls ConfigFlow-Keys fehlen)
+# =========================
+@dataclass(frozen=True)
+class Defaults:
+    soc_entity: str = "sensor.solarflow_2400_ac_electric_level"
+    pv_entity: str = "sensor.sb2_5_1vl_40_401_pv_power"
+    load_entity: str = "sensor.gesamtverbrauch"
+    price_now_entity: str = "sensor.paul_schneider_strasse_39_aktueller_strompreis_energie_dashboard"
+
+    # Netz (optional)
+    grid_mode: str = "single_sensor"  # single_sensor | split_sensors | none
+    grid_power_entity: str | None = None
+    grid_import_entity: str | None = None
+    grid_export_entity: str | None = None
+
+    # Zendure-Steuerung
+    ac_mode_entity: str = "select.solarflow_2400_ac_ac_mode"
+    input_limit_entity: str = "number.solarflow_2400_ac_input_limit"
+    output_limit_entity: str = "number.solarflow_2400_ac_output_limit"
+
+
+DEFAULTS = Defaults()
+
+
+# =========================
 # Helper
 # =========================
 def _f(state: str | None, default: float = 0.0) -> float:
@@ -26,6 +51,25 @@ def _f(state: str | None, default: float = 0.0) -> float:
         return float(str(state).replace(",", "."))
     except Exception:
         return default
+
+
+def _pick(entry: ConfigEntry, *keys: str, default: Any = None) -> Any:
+    """
+    Liest robust:
+    1) entry.options
+    2) entry.data
+    und unterstützt mehrere mögliche Key-Namen (legacy-safe).
+    """
+    options = entry.options or {}
+    data = entry.data or {}
+
+    for k in keys:
+        if k in options and options.get(k) not in (None, ""):
+            return options.get(k)
+    for k in keys:
+        if k in data and data.get(k) not in (None, ""):
+            return data.get(k)
+    return default
 
 
 # =========================
@@ -38,22 +82,68 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.entry = entry
         self.entry_id = entry.entry_id
 
-        # --- Config aus Flow ---
-        data = entry.data
+        # ---- Messwerte (robust gegen alte/new Keys) ----
+        self.soc_entity = _pick(
+            entry,
+            "soc_entity", "soc", "soc_id",
+            default=DEFAULTS.soc_entity,
+        )
+        self.pv_entity = _pick(
+            entry,
+            "pv_entity", "pv", "pv_id",
+            default=DEFAULTS.pv_entity,
+        )
+        self.load_entity = _pick(
+            entry,
+            "load_entity", "load", "load_id", "house_load_entity",
+            default=DEFAULTS.load_entity,
+        )
 
-        self.soc_entity = data["soc_entity"]
-        self.pv_entity = data["pv_entity"]
-        self.load_entity = data["load_entity"]
-        self.price_now_entity = data["price_now_entity"]
+        # aktueller Preis (optional – wir können auch ohne weiterlaufen)
+        self.price_now_entity = _pick(
+            entry,
+            "price_now_entity", "price_entity", "price_now", "price",
+            default=DEFAULTS.price_now_entity,
+        )
 
-        self.grid_mode = data.get("grid_mode", "single_sensor")
-        self.grid_power_entity = data.get("grid_power_entity")
-        self.grid_import_entity = data.get("grid_import_entity")
-        self.grid_export_entity = data.get("grid_export_entity")
+        # ---- Netzsensor-Konfig (Schritt 2) ----
+        self.grid_mode = _pick(
+            entry,
+            "grid_mode",
+            default=DEFAULTS.grid_mode,
+        )
+        self.grid_power_entity = _pick(
+            entry,
+            "grid_power_entity", "grid_entity", "grid_power",
+            default=DEFAULTS.grid_power_entity,
+        )
+        self.grid_import_entity = _pick(
+            entry,
+            "grid_import_entity", "import_entity", "grid_import",
+            default=DEFAULTS.grid_import_entity,
+        )
+        self.grid_export_entity = _pick(
+            entry,
+            "grid_export_entity", "export_entity", "grid_export",
+            default=DEFAULTS.grid_export_entity,
+        )
 
-        self.ac_mode_entity = data["ac_mode_entity"]
-        self.input_limit_entity = data["input_limit_entity"]
-        self.output_limit_entity = data["output_limit_entity"]
+        # ---- Zendure Steuerung ----
+        self.ac_mode_entity = _pick(
+            entry,
+            "ac_mode_entity", "ac_mode", "ac_mode_id",
+            default=DEFAULTS.ac_mode_entity,
+        )
+        self.input_limit_entity = _pick(
+            entry,
+            "input_limit_entity", "input_limit", "input_limit_id",
+            default=DEFAULTS.input_limit_entity,
+        )
+        self.output_limit_entity = _pick(
+            entry,
+            "output_limit_entity", "output_limit", "output_limit_id",
+            default=DEFAULTS.output_limit_entity,
+        )
 
         # Freeze
         self._freeze_until: datetime | None = None
@@ -67,6 +157,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
+        _LOGGER.debug(
+            "Zendure SmartFlow AI entities: soc=%s pv=%s load=%s price_now=%s grid_mode=%s grid=%s import=%s export=%s",
+            self.soc_entity,
+            self.pv_entity,
+            self.load_entity,
+            self.price_now_entity,
+            self.grid_mode,
+            self.grid_power_entity,
+            self.grid_import_entity,
+            self.grid_export_entity,
+        )
+
     # -------------------------
     # State helper
     # -------------------------
@@ -77,28 +179,32 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return None if s is None else s.state
 
     # =========================
-    # Netz-Logik (KERN von Schritt 2)
+    # Netz-Logik (Schritt 2)
     # =========================
     def _calc_grid(self) -> tuple[float, float]:
         """
         Liefert immer:
         - grid_import_w ≥ 0
         - grid_export_w ≥ 0
+        Unterstützt:
+        - single_sensor: Bezug +, Einspeisung -
+        - split_sensors: getrennt
+        - none/fallback: aus load-pv berechnet
         """
-        # --- Variante 1: EIN Sensor ± ---
-        if self.grid_mode == "single_sensor" and self.grid_power_entity:
+        mode = (self.grid_mode or "single_sensor").lower()
+
+        if mode == "single_sensor" and self.grid_power_entity:
             v = _f(self._state(self.grid_power_entity))
             if v >= 0:
                 return v, 0.0
             return 0.0, abs(v)
 
-        # --- Variante 2: GETRENNT ---
-        if self.grid_mode == "split_sensors":
+        if mode == "split_sensors":
             imp = _f(self._state(self.grid_import_entity))
             exp = _f(self._state(self.grid_export_entity))
             return max(imp, 0.0), max(exp, 0.0)
 
-        # --- Fallback ---
+        # Fallback: aus load/pv
         load = _f(self._state(self.load_entity))
         pv = _f(self._state(self.pv_entity))
         net = load - pv
@@ -111,7 +217,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             now = dt_util.utcnow()
 
-            # --- Basis ---
             soc = _f(self._state(self.soc_entity))
             pv = _f(self._state(self.pv_entity))
             load = _f(self._state(self.load_entity))
@@ -119,13 +224,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             grid_import, grid_export = self._calc_grid()
 
-            # =========================
-            # (LOGIK kommt in Schritt 3)
-            # =========================
+            # (Logik kommt im nächsten Schritt – hier nur stabile Datenbasis)
             ai_status = "standby"
             recommendation = "standby"
 
-            # Freeze nur vorbereiten
+            # Freeze “neutral” (damit später nicht flackert)
             if self._freeze_until and now < self._freeze_until:
                 ai_status = self._last_ai_status or ai_status
                 recommendation = self._last_recommendation or recommendation
