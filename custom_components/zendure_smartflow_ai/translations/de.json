@@ -1,53 +1,69 @@
 {
   "title": "Zendure SmartFlow AI",
 
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI – Einrichtung",
+        "description": "Wähle hier die Sensoren aus, die für die intelligente Steuerung des Zendure SolarFlow genutzt werden sollen.\n\nHinweis: Die Bezeichnungen können je nach Installation unterschiedlich sein.",
+        "data": {
+          "soc_entity": "Akkustand (SoC in %)",
+          "pv_entity": "PV-Leistung (aktuelle Erzeugung in Watt)",
+          "load_entity": "Hausverbrauch (aktueller Verbrauch in Watt)",
+          "price_now_entity": "Aktueller Strompreis (€/kWh)",
+          "ac_mode_entity": "Zendure AC-Betriebsmodus (Input / Output)",
+          "grid_mode": "Art der Netzmessung",
+          "grid_power_entity": "Netzleistung (ein Sensor: +Bezug / –Einspeisung)",
+          "grid_import_entity": "Netzbezug (separater Sensor)",
+          "grid_export_entity": "Netzeinspeisung (separater Sensor)"
+        }
+      }
+    },
+    "error": {
+      "invalid_configuration": "Ungültige Konfiguration. Bitte prüfe die ausgewählten Sensoren."
+    }
+  },
+
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zendure SmartFlow AI – Optionen",
+        "description": "Hier kannst du die Steuerparameter der KI anpassen.",
+        "data": {
+          "soc_min": "Mindest-SoC (%) – Reserve",
+          "soc_max": "Maximaler SoC (%) – Ladeziel",
+          "expensive_threshold": "Teuer-Schwelle Strompreis (€/kWh)",
+          "max_charge": "Maximale Ladeleistung (W)",
+          "max_discharge": "Maximale Entladeleistung (W)"
+        }
+      }
+    }
+  },
+
   "entity": {
     "sensor": {
-      "zendure_smartflow_ai_status": {
-        "name": "SmartFlow AI Status",
+      "ai_status": {
+        "name": "Zendure SmartFlow AI Status",
         "state": {
           "standby": "Standby",
-          "pv_laden": "PV-Überschuss laden",
-          "günstig_laden": "Günstig laden",
-          "teuer_entladen": "Teuer – Entladen",
           "notladung": "Notladung aktiv",
-          "manual_mode": "Manueller Modus"
+          "teuer_jetzt": "Teure Phase – Entladen",
+          "pv_laden": "PV-Überschuss – Laden",
+          "günstig_jetzt": "Günstige Phase – Laden"
         }
       },
-      "zendure_akku_steuerungsempfehlung": {
-        "name": "Akku Steuerungsempfehlung"
-      },
-      "zendure_smartflow_ai_debug": {
-        "name": "SmartFlow AI Debug"
-      }
-    },
-
-    "select": {
-      "zendure_betriebsmodus": {
-        "name": "Zendure Betriebsmodus",
+      "recommendation": {
+        "name": "Zendure SmartFlow Steuerungsempfehlung",
         "state": {
-          "automatic": "Automatik",
-          "summer": "Sommer",
-          "winter": "Winter",
-          "manual": "Manuell"
+          "standby": "Keine Aktion",
+          "billig_laden": "Günstig laden",
+          "ki_laden": "KI-Laden empfohlen",
+          "laden": "Laden",
+          "entladen": "Entladen"
         }
-      }
-    },
-
-    "number": {
-      "zendure_soc_min": {
-        "name": "SoC Minimum",
-        "description": "Unterhalb dieses SoC wird der Akku nicht mehr entladen."
       },
-      "zendure_soc_max": {
-        "name": "SoC Maximum",
-        "description": "Maximaler Ziel-Ladezustand des Akkus."
-      },
-      "zendure_max_ladeleistung": {
-        "name": "Maximale Ladeleistung"
-      },
-      "zendure_max_entladeleistung": {
-        "name": "Maximale Entladeleistung"
+      "debug": {
+        "name": "Zendure SmartFlow AI Debug"
       }
     }
   }
