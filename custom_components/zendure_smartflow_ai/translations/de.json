@@ -1,69 +1,25 @@
 {
-  "title": "Zendure SmartFlow AI",
-
   "config": {
+    "error": {
+      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
+    },
     "step": {
       "user": {
-        "title": "Zendure SmartFlow AI – Einrichtung",
-        "description": "Wähle hier die Sensoren aus, die für die intelligente Steuerung des Zendure SolarFlow genutzt werden sollen.\n\nHinweis: Die Bezeichnungen können je nach Installation unterschiedlich sein.",
+        "title": "Zendure SmartFlow AI",
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Die Integration erstellt danach ihre eigenen Regler und Modi – ohne externe Helper.",
         "data": {
-          "soc_entity": "Akkustand (SoC in %)",
-          "pv_entity": "PV-Leistung (aktuelle Erzeugung in Watt)",
-          "load_entity": "Hausverbrauch (aktueller Verbrauch in Watt)",
-          "price_now_entity": "Aktueller Strompreis (€/kWh)",
-          "ac_mode_entity": "Zendure AC-Betriebsmodus (Input / Output)",
-          "grid_mode": "Art der Netzmessung",
-          "grid_power_entity": "Netzleistung (ein Sensor: +Bezug / –Einspeisung)",
-          "grid_import_entity": "Netzbezug (separater Sensor)",
-          "grid_export_entity": "Netzeinspeisung (separater Sensor)"
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "load_entity": "Hausverbrauch (W)",
+          "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input Limit (Number, W)",
+          "output_limit_entity": "Zendure Output Limit (Number, W)",
+          "grid_mode": "Netzsensor-Setup",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
+          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)"
         }
-      }
-    },
-    "error": {
-      "invalid_configuration": "Ungültige Konfiguration. Bitte prüfe die ausgewählten Sensoren."
-    }
-  },
-
-  "options": {
-    "step": {
-      "init": {
-        "title": "Zendure SmartFlow AI – Optionen",
-        "description": "Hier kannst du die Steuerparameter der KI anpassen.",
-        "data": {
-          "soc_min": "Mindest-SoC (%) – Reserve",
-          "soc_max": "Maximaler SoC (%) – Ladeziel",
-          "expensive_threshold": "Teuer-Schwelle Strompreis (€/kWh)",
-          "max_charge": "Maximale Ladeleistung (W)",
-          "max_discharge": "Maximale Entladeleistung (W)"
-        }
-      }
-    }
-  },
-
-  "entity": {
-    "sensor": {
-      "ai_status": {
-        "name": "Zendure SmartFlow AI Status",
-        "state": {
-          "standby": "Standby",
-          "notladung": "Notladung aktiv",
-          "teuer_jetzt": "Teure Phase – Entladen",
-          "pv_laden": "PV-Überschuss – Laden",
-          "günstig_jetzt": "Günstige Phase – Laden"
-        }
-      },
-      "recommendation": {
-        "name": "Zendure SmartFlow Steuerungsempfehlung",
-        "state": {
-          "standby": "Keine Aktion",
-          "billig_laden": "Günstig laden",
-          "ki_laden": "KI-Laden empfohlen",
-          "laden": "Laden",
-          "entladen": "Entladen"
-        }
-      },
-      "debug": {
-        "name": "Zendure SmartFlow AI Debug"
       }
     }
   }
