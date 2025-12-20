@@ -1,66 +1,59 @@
 from __future__ import annotations
-
 from homeassistant.const import Platform
 
-# =====================================================
-# Domain
-# =====================================================
 DOMAIN = "zendure_smartflow_ai"
 
-# =====================================================
-# Platforms
-# =====================================================
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.NUMBER,
     Platform.SELECT,
 ]
 
-# =====================================================
-# Config Flow Keys (Benutzer-Auswahl)
-# =====================================================
-
-# Messwerte
+# =========================
+# Config-Flow Keys
+# =========================
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
 CONF_LOAD_ENTITY = "load_entity"
-
-# Preise
-CONF_PRICE_NOW_ENTITY = "price_now_entity"
 CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
 
-# Zendure Steuerung
 CONF_AC_MODE_ENTITY = "ac_mode_entity"
 CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
 CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
-# Grid / Netz
-CONF_GRID_MODE = "grid_mode"
-CONF_GRID_POWER_ENTITY = "grid_power_entity"
-CONF_GRID_IMPORT_ENTITY = "grid_import_entity"
-CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
+# =========================
+# Betriebsmodi (Integration)
+# =========================
+MODE_AUTOMATIC = "automatic"
+MODE_SUMMER = "summer"
+MODE_WINTER = "winter"
+MODE_MANUAL = "manual"
 
-# =====================================================
-# Grid Modes
-# =====================================================
-GRID_MODE_SINGLE = "single"
-GRID_MODE_SPLIT = "split"
+MODES = [
+    MODE_AUTOMATIC,
+    MODE_SUMMER,
+    MODE_WINTER,
+    MODE_MANUAL,
+]
 
-# =====================================================
-# Interne SETTINGS (werden von number.py / select.py genutzt)
-# =====================================================
+# =========================
+# Interne Settings-Keys
+# =========================
+SETTING_OPERATION_MODE = "operation_mode"
 
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
-
-# "teuer-Schwelle"
 SETTING_EXPENSIVE_THRESHOLD = "expensive_threshold"
-# Backwards-Compatibility: ältere/andere Dateien erwarten diesen Namen
-SETTING_PRICE_THRESHOLD = SETTING_EXPENSIVE_THRESHOLD  # Alias
+SETTING_PRICE_THRESHOLD = SETTING_EXPENSIVE_THRESHOLD  # Alias!
 
-# Lade/Entlade-Limits
 SETTING_MAX_CHARGE = "max_charge"
 SETTING_MAX_DISCHARGE = "max_discharge"
 
-# Betriebsmodus der Integration (auto / summer / winter / manual)
-SETTING_OPERATION_MODE = "operation_mode"
+# =========================
+# Default-Werte
+# =========================
+DEFAULT_SOC_MIN = 10.0
+DEFAULT_SOC_MAX = 100.0
+DEFAULT_EXPENSIVE_THRESHOLD = 0.35
+DEFAULT_MAX_CHARGE = 2000.0
+DEFAULT_MAX_DISCHARGE = 800.0
