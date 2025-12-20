@@ -20,18 +20,19 @@ PLATFORMS: list[Platform] = [
 # Config Keys (Config Flow)
 # =========================
 
-# Messwerte
+# --- Messwerte ---
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
 CONF_LOAD_ENTITY = "load_entity"
 
-# Strompreis (aktueller Slot / Datenexport)
+# --- Strompreise ---
 CONF_PRICE_NOW_ENTITY = "price_now_entity"
+CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
 
-# Zendure Steuerung
+# --- Zendure Steuerung ---
 CONF_AC_MODE_ENTITY = "ac_mode_entity"
 
-# Netz-Logik (optional / später)
+# --- Netz / Grid Logik (V0.2.x) ---
 CONF_GRID_MODE = "grid_mode"
 CONF_GRID_POWER_ENTITY = "grid_power_entity"
 CONF_GRID_IMPORT_ENTITY = "grid_import_entity"
@@ -40,5 +41,5 @@ CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
 # =========================
 # Grid Modes
 # =========================
-GRID_MODE_SINGLE = "single"
-GRID_MODE_SPLIT = "split"
+GRID_MODE_SINGLE = "single"   # ein Sensor (+Bezug / −Einspeisung)
+GRID_MODE_SPLIT = "split"    # getrennte Sensoren
