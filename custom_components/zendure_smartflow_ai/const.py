@@ -29,8 +29,10 @@ CONF_LOAD_ENTITY = "load_entity"
 CONF_PRICE_NOW_ENTITY = "price_now_entity"
 CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
 
-# --- Zendure Steuerung ---
+# --- Zendure Steuerung (SolarFlow AC) ---
 CONF_AC_MODE_ENTITY = "ac_mode_entity"
+CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
+CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
 # --- Netz / Grid Logik (V0.2.x) ---
 CONF_GRID_MODE = "grid_mode"
