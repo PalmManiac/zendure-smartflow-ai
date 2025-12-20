@@ -1,59 +1,60 @@
 from __future__ import annotations
+
 from homeassistant.const import Platform
 
+# ==================================================
+# Domain
+# ==================================================
 DOMAIN = "zendure_smartflow_ai"
 
+# ==================================================
+# Platforms
+# ==================================================
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.NUMBER,
     Platform.SELECT,
 ]
 
-# =========================
-# Config-Flow Keys
-# =========================
+# ==================================================
+# Config Flow – Entity Auswahl
+# ==================================================
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
 CONF_LOAD_ENTITY = "load_entity"
+
+CONF_PRICE_NOW_ENTITY = "price_now_entity"
 CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
 
 CONF_AC_MODE_ENTITY = "ac_mode_entity"
 CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
 CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
-# =========================
-# Betriebsmodi (Integration)
-# =========================
-MODE_AUTOMATIC = "automatic"
-MODE_SUMMER = "summer"
-MODE_WINTER = "winter"
-MODE_MANUAL = "manual"
+# ==================================================
+# Grid / Hausanschluss
+# ==================================================
+CONF_GRID_MODE = "grid_mode"
+CONF_GRID_POWER_ENTITY = "grid_power_entity"
+CONF_GRID_IMPORT_ENTITY = "grid_import_entity"
+CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
 
-MODES = [
-    MODE_AUTOMATIC,
-    MODE_SUMMER,
-    MODE_WINTER,
-    MODE_MANUAL,
-]
+GRID_MODE_SINGLE = "single"
+GRID_MODE_SPLIT = "split"
 
-# =========================
-# Interne Settings-Keys
-# =========================
-SETTING_OPERATION_MODE = "operation_mode"
-
+# ==================================================
+# Integration Settings (Number-Entities)
+# ==================================================
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
-SETTING_EXPENSIVE_THRESHOLD = "expensive_threshold"
-SETTING_PRICE_THRESHOLD = SETTING_EXPENSIVE_THRESHOLD  # Alias!
-
 SETTING_MAX_CHARGE = "max_charge"
 SETTING_MAX_DISCHARGE = "max_discharge"
+SETTING_PRICE_THRESHOLD = "price_threshold"
 
-# =========================
-# Default-Werte
-# =========================
-DEFAULT_SOC_MIN = 10.0
-DEFAULT_SOC_MAX = 100.0
-DEFAULT_EXPENSIVE_THRESHOLD = 0.35
+# ==================================================
+# Defaults
+# ==================================================
+DEFAULT_SOC_MIN = 12.0
+DEFAULT_SOC_MAX = 100.0   # Hersteller-Empfehlung ✔
 DEFAULT_MAX_CHARGE = 2000.0
-DEFAULT_MAX_DISCHARGE = 800.0
+DEFAULT_MAX_DISCHARGE = 700.0
+DEFAULT_PRICE_THRESHOLD = 0.35
