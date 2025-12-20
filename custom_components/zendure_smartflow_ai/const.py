@@ -17,7 +17,7 @@ PLATFORMS: list[Platform] = [
 ]
 
 # =====================================================
-# Config Flow Keys (Benutzer wählt reale Entitäten)
+# Config Flow Keys (Benutzer-Auswahl)
 # =====================================================
 
 # Messwerte
@@ -43,21 +43,22 @@ CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
 # =====================================================
 # Grid Modes
 # =====================================================
-GRID_MODE_SINGLE = "single"   # + Bezug / − Einspeisung
-GRID_MODE_SPLIT = "split"    # getrennte Sensoren
+GRID_MODE_SINGLE = "single"
+GRID_MODE_SPLIT = "split"
 
 # =====================================================
-# Interne SETTINGS (Number / Select Entitäten)
+# Interne SETTINGS
+# (werden von number.py / select.py genutzt)
 # =====================================================
-# ⚠️ Diese werden von number.py / select.py verwendet
-# ⚠️ NICHT im Config Flow sichtbar
 
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
 
 SETTING_EXPENSIVE_THRESHOLD = "expensive_threshold"
 
-SETTING_MAX_CHARGE_POWER = "max_charge_power"
-SETTING_MAX_DISCHARGE_POWER = "max_discharge_power"
+# ⚠️ Diese Namen sind absichtlich so gewählt,
+# damit number.py NICHT geändert werden muss
+SETTING_MAX_CHARGE = "max_charge"
+SETTING_MAX_DISCHARGE = "max_discharge"
 
-SETTING_OPERATION_MODE = "operation_mode"   # auto / summer / winter / manual
+SETTING_OPERATION_MODE = "operation_mode"  # auto / summer / winter / manual
