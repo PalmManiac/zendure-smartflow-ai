@@ -22,19 +22,5 @@
         }
       }
     }
-  },
-
-  "entity": {
-    "select": {
-      "ai_mode": {
-        "name": "Zendure SmartFlow AI Modus",
-        "state": {
-          "automatic": "Automatik (AI)",
-          "summer": "Sommer (PV-optimiert)",
-          "winter": "Winter (preisoptimiert)",
-          "manual": "Manuell"
-        }
-      }
-    }
   }
 }
