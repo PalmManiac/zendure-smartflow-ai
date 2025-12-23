@@ -105,3 +105,8 @@ RECOMMENDATION_HOLD = "halten"
 # (NIE entfernen!)
 # ==================================================
 DEFAULT_EXPENSIVE_THRESHOLD = DEFAULT_PRICE_THRESHOLD
+
+# ==================================================
+# Update / Timing
+# ==================================================
+UPDATE_INTERVAL = 10  # Sekunde
