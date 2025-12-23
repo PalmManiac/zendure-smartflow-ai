@@ -1,106 +1,162 @@
+# custom_components/zendure_smartflow_ai/number.py
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
-from homeassistant.components.number import NumberEntity
+from homeassistant.components.number import NumberEntity, NumberEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.storage import Store
 
 from .const import (
     DOMAIN,
-    DATA_COORDINATOR,
-    # keys
     SETTING_SOC_MIN,
     SETTING_SOC_MAX,
     SETTING_MAX_CHARGE,
     SETTING_MAX_DISCHARGE,
-    SETTING_PRICE_EXPENSIVE,
-    SETTING_PRICE_VERY_EXPENSIVE,
-    SETTING_PRICE_CHEAP,
-    SETTING_SURPLUS_MIN,
-    SETTING_MANUAL_CHARGE_W,
-    SETTING_MANUAL_DISCHARGE_W,
-    # defaults
+    SETTING_EXPENSIVE_THRESHOLD,
+    SETTING_VERY_EXPENSIVE_THRESHOLD,
+    SETTING_SURPLUS_THRESHOLD,
     DEFAULT_SOC_MIN,
     DEFAULT_SOC_MAX,
     DEFAULT_MAX_CHARGE,
     DEFAULT_MAX_DISCHARGE,
-    DEFAULT_PRICE_EXPENSIVE,
-    DEFAULT_PRICE_VERY_EXPENSIVE,
-    DEFAULT_PRICE_CHEAP,
-    DEFAULT_SURPLUS_MIN,
-    DEFAULT_MANUAL_CHARGE_W,
-    DEFAULT_MANUAL_DISCHARGE_W,
+    DEFAULT_EXPENSIVE_THRESHOLD,
+    DEFAULT_VERY_EXPENSIVE_THRESHOLD,
+    DEFAULT_SURPLUS_THRESHOLD,
 )
 
+STORAGE_VERSION = 1
 
-@dataclass
-class _NumDef:
-    key: str
-    name: str
-    icon: str
-    unit: str | None
-    min_value: float
-    max_value: float
-    step: float
+
+@dataclass(frozen=True, kw_only=True)
+class ZNumberDescription(NumberEntityDescription):
+    setting_key: str
     default: float
 
 
-NUMBERS: list[_NumDef] = [
-    _NumDef(SETTING_SOC_MIN, "Zendure SoC Minimum", "mdi:battery-low", "%", 5, 50, 1, DEFAULT_SOC_MIN),
-    _NumDef(SETTING_SOC_MAX, "Zendure SoC Maximum", "mdi:battery-high", "%", 50, 100, 1, DEFAULT_SOC_MAX),
-
-    _NumDef(SETTING_MAX_CHARGE, "Zendure Max Ladeleistung", "mdi:flash", "W", 0, 5000, 50, DEFAULT_MAX_CHARGE),
-    _NumDef(SETTING_MAX_DISCHARGE, "Zendure Max Entladeleistung", "mdi:flash-outline", "W", 0, 5000, 50, DEFAULT_MAX_DISCHARGE),
-
-    _NumDef(SETTING_PRICE_EXPENSIVE, "Preis-Schwelle Teuer", "mdi:currency-eur", "€/kWh", 0.0, 2.0, 0.01, DEFAULT_PRICE_EXPENSIVE),
-    _NumDef(SETTING_PRICE_VERY_EXPENSIVE, "Preis-Schwelle Sehr teuer", "mdi:currency-eur", "€/kWh", 0.0, 2.0, 0.01, DEFAULT_PRICE_VERY_EXPENSIVE),
-    _NumDef(SETTING_PRICE_CHEAP, "Preis-Schwelle Günstig", "mdi:currency-eur", "€/kWh", 0.0, 2.0, 0.01, DEFAULT_PRICE_CHEAP),
-
-    _NumDef(SETTING_SURPLUS_MIN, "PV-Überschuss Mindestwert", "mdi:solar-power", "W", 0, 2000, 10, DEFAULT_SURPLUS_MIN),
-
-    _NumDef(SETTING_MANUAL_CHARGE_W, "Manuell Laden (W)", "mdi:hand-extended", "W", 0, 5000, 50, DEFAULT_MANUAL_CHARGE_W),
-    _NumDef(SETTING_MANUAL_DISCHARGE_W, "Manuell Entladen (W)", "mdi:hand-extended", "W", 0, 5000, 50, DEFAULT_MANUAL_DISCHARGE_W),
+NUMBERS: list[ZNumberDescription] = [
+    ZNumberDescription(
+        key=SETTING_SOC_MIN,
+        setting_key=SETTING_SOC_MIN,
+        default=float(DEFAULT_SOC_MIN),
+        native_min_value=0,
+        native_max_value=100,
+        native_step=1,
+        translation_key="soc_min",
+        icon="mdi:battery-low",
+        unit_of_measurement="%",
+    ),
+    ZNumberDescription(
+        key=SETTING_SOC_MAX,
+        setting_key=SETTING_SOC_MAX,
+        default=float(DEFAULT_SOC_MAX),
+        native_min_value=0,
+        native_max_value=100,
+        native_step=1,
+        translation_key="soc_max",
+        icon="mdi:battery-high",
+        unit_of_measurement="%",
+    ),
+    ZNumberDescription(
+        key=SETTING_MAX_CHARGE,
+        setting_key=SETTING_MAX_CHARGE,
+        default=float(DEFAULT_MAX_CHARGE),
+        native_min_value=0,
+        native_max_value=5000,
+        native_step=1,
+        translation_key="max_charge",
+        icon="mdi:flash",
+        unit_of_measurement="W",
+    ),
+    ZNumberDescription(
+        key=SETTING_MAX_DISCHARGE,
+        setting_key=SETTING_MAX_DISCHARGE,
+        default=float(DEFAULT_MAX_DISCHARGE),
+        native_min_value=0,
+        native_max_value=5000,
+        native_step=1,
+        translation_key="max_discharge",
+        icon="mdi:flash-outline",
+        unit_of_measurement="W",
+    ),
+    ZNumberDescription(
+        key=SETTING_EXPENSIVE_THRESHOLD,
+        setting_key=SETTING_EXPENSIVE_THRESHOLD,
+        default=float(DEFAULT_EXPENSIVE_THRESHOLD),
+        native_min_value=0,
+        native_max_value=2,
+        native_step=0.01,
+        translation_key="expensive_threshold",
+        icon="mdi:cash-alert",
+        unit_of_measurement="€/kWh",
+    ),
+    ZNumberDescription(
+        key=SETTING_VERY_EXPENSIVE_THRESHOLD,
+        setting_key=SETTING_VERY_EXPENSIVE_THRESHOLD,
+        default=float(DEFAULT_VERY_EXPENSIVE_THRESHOLD),
+        native_min_value=0,
+        native_max_value=2,
+        native_step=0.01,
+        translation_key="very_expensive_threshold",
+        icon="mdi:cash-lock",
+        unit_of_measurement="€/kWh",
+    ),
+    ZNumberDescription(
+        key=SETTING_SURPLUS_THRESHOLD,
+        setting_key=SETTING_SURPLUS_THRESHOLD,
+        default=float(DEFAULT_SURPLUS_THRESHOLD),
+        native_min_value=0,
+        native_max_value=2000,
+        native_step=1,
+        translation_key="surplus_threshold",
+        icon="mdi:solar-power",
+        unit_of_measurement="W",
+    ),
 ]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    coordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
-    async_add_entities([ZendureSettingNumber(hass, entry, coordinator, d) for d in NUMBERS], True)
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.settings")
+
+    data: dict[str, Any] = await store.async_load() or {}
+    entities: list[ZendureSettingNumber] = []
+    for desc in NUMBERS:
+        entities.append(ZendureSettingNumber(entry, desc, store, data))
+    async_add_entities(entities)
 
 
 class ZendureSettingNumber(NumberEntity):
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, coordinator, d: _NumDef) -> None:
-        self.hass = hass
-        self.entry = entry
-        self.coordinator = coordinator
-        self.defn = d
+    def __init__(self, entry: ConfigEntry, desc: ZNumberDescription, store: Store, stored: dict[str, Any]):
+        self.entity_description = desc
+        self._attr_unique_id = f"{entry.entry_id}_{desc.key}"
+        self._attr_has_entity_name = True
 
-        self._attr_name = d.name
-        self._attr_icon = d.icon
-        self._attr_native_unit_of_measurement = d.unit
-        self._attr_native_min_value = d.min_value
-        self._attr_native_max_value = d.max_value
-        self._attr_native_step = d.step
+        self._store = store
+        self._stored = stored
+        self._value = float(stored.get(desc.setting_key, desc.default))
 
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": "Zendure SmartFlow AI",
-            "manufacturer": "TK-Multimedia / Community",
-            "model": "SmartFlow AI",
-        }
-
-    @property
-    def unique_id(self) -> str:
-        return f"{self.entry.entry_id}_setting_{self.defn.key}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="Zendure SmartFlow AI",
+            manufacturer="Community",
+            model="SmartFlow AI",
+        )
 
     @property
     def native_value(self) -> float:
-        return float((self.entry.options or {}).get(self.defn.key, self.defn.default))
+        return float(self._value)
 
     async def async_set_native_value(self, value: float) -> None:
-        opts = dict(self.entry.options or {})
-        opts[self.defn.key] = float(value)
-        self.hass.config_entries.async_update_entry(self.entry, options=opts)
-        await self.coordinator.async_request_refresh()
+        # keep clean numbers for most; thresholds allow decimals via native_step
+        self._value = float(value)
+        self._stored[self.entity_description.setting_key] = self._value
+        await self._store.async_save(self._stored)
+        self.async_write_ha_state()
