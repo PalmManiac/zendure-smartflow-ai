@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
@@ -9,24 +10,70 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .const import *
+from .const import (
+    CONF_SOC_ENTITY,
+    CONF_PV_ENTITY,
+    CONF_LOAD_ENTITY,
+    CONF_PRICE_EXPORT_ENTITY,
+    CONF_AC_MODE_ENTITY,
+    CONF_INPUT_LIMIT_ENTITY,
+    CONF_OUTPUT_LIMIT_ENTITY,
+    DEFAULT_SOC_MIN,
+    DEFAULT_SOC_MAX,
+    DEFAULT_EXPENSIVE_THRESHOLD,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
+# ✅ FIX: war vorher undefiniert -> NameError
+UPDATE_INTERVAL = 10  # Sekunden
 
-def _to_float(val: Any, default: float = 0.0) -> float:
+
+@dataclass
+class EntityIds:
+    soc: str
+    pv: str
+    load: str
+    price_export: str
+    ac_mode: str
+    input_limit: str
+    output_limit: str
+
+
+def _to_float(val: Any, default: float | None = None) -> float | None:
     try:
-        return float(str(val).replace(",", "."))
+        if val is None:
+            return default
+        s = str(val).replace(",", ".")
+        if s.lower() in ("unknown", "unavailable", ""):
+            return default
+        return float(s)
     except Exception:
         return default
 
 
 class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """V0.4.x – liest Sensoren/Preise und liefert Status/Empfehlung (und je nach Version ggf. Hardware-Steuerung)."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
         self.hass = hass
         self.entry = entry
-        self.data_cfg = entry.data
+        data = entry.data or {}
+
+        # robust gegen fehlende Keys
+        def pick(key: str, fallback: str = "") -> str:
+            v = data.get(key)
+            return v if isinstance(v, str) and v else fallback
+
+        self.entities = EntityIds(
+            soc=pick(CONF_SOC_ENTITY),
+            pv=pick(CONF_PV_ENTITY),
+            load=pick(CONF_LOAD_ENTITY),
+            price_export=pick(CONF_PRICE_EXPORT_ENTITY),
+            ac_mode=pick(CONF_AC_MODE_ENTITY),
+            input_limit=pick(CONF_INPUT_LIMIT_ENTITY),
+            output_limit=pick(CONF_OUTPUT_LIMIT_ENTITY),
+        )
 
         super().__init__(
             hass,
@@ -35,9 +82,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=UPDATE_INTERVAL),
         )
 
-    # --------------------------------------------------
-    # Helpers
-    # --------------------------------------------------
+    # -----------------------------
     def _state(self, entity_id: str) -> Any:
         st = self.hass.states.get(entity_id)
         return None if st is None else st.state
@@ -46,143 +91,60 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         st = self.hass.states.get(entity_id)
         return None if st is None else st.attributes.get(attr)
 
-    async def _set_select(self, entity_id: str, option: str):
-        await self.hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": entity_id, "option": option},
-            blocking=False,
-        )
-
-    async def _set_number(self, entity_id: str, value: float):
-        await self.hass.services.async_call(
-            "number",
-            "set_value",
-            {"entity_id": entity_id, "value": int(round(value, 0))},
-            blocking=False,
-        )
-
-    # --------------------------------------------------
-    # Strompreis (Tibber Datenexport)
-    # --------------------------------------------------
     def _price_now(self) -> float | None:
-        data = self._attr(self.data_cfg[CONF_PRICE_EXPORT_ENTITY], "data")
-        if not isinstance(data, list):
+        data = self._attr(self.entities.price_export, "data")
+        if not isinstance(data, list) or not data:
             return None
 
         now = dt_util.now()
         idx = int((now.hour * 60 + now.minute) // 15)
-        if idx >= len(data):
+        if idx < 0 or idx >= len(data):
             return None
 
-        return _to_float(data[idx].get("price_per_kwh"))
+        item = data[idx]
+        if not isinstance(item, dict):
+            return None
+        return _to_float(item.get("price_per_kwh"), default=None)
 
-    # --------------------------------------------------
-    # Main Update
-    # --------------------------------------------------
+    # -----------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            # ---------------------------
-            # Rohwerte
-            # ---------------------------
-            soc = _to_float(self._state(self.data_cfg[CONF_SOC_ENTITY]))
-            pv = _to_float(self._state(self.data_cfg[CONF_PV_ENTITY]))
-            load = _to_float(self._state(self.data_cfg[CONF_LOAD_ENTITY]))
+            soc = _to_float(self._state(self.entities.soc), 0.0) or 0.0
+            pv = _to_float(self._state(self.entities.pv), 0.0) or 0.0
+            load = _to_float(self._state(self.entities.load), 0.0) or 0.0
 
             price_now = self._price_now()
+
+            # Basissachen für Debug/Details
+            surplus = max(pv - load, 0.0)
+            deficit = max(load - pv, 0.0)
+
             if price_now is None:
                 return {
                     "ai_status": "price_invalid",
                     "recommendation": "standby",
                     "debug": "PRICE_INVALID",
+                    "details": {
+                        "soc": soc,
+                        "pv": pv,
+                        "load": load,
+                        "surplus": surplus,
+                        "deficit": deficit,
+                        "price_export_entity": self.entities.price_export,
+                    },
                 }
 
-            surplus = max(pv - load, 0.0)
-            deficit = max(load - pv, 0.0)
-
-            # ---------------------------
-            # Einstellungen (Number)
-            # ---------------------------
-            soc_min = DEFAULT_SOC_MIN
-            soc_max = DEFAULT_SOC_MAX
-            max_charge = DEFAULT_MAX_CHARGE
-            max_discharge = DEFAULT_MAX_DISCHARGE
-            expensive = DEFAULT_EXPENSIVE
-            very_expensive = DEFAULT_VERY_EXPENSIVE
-
-            # ---------------------------
-            # AI Mode
-            # ---------------------------
-            ai_mode_state = self.hass.states.get(
-                f"select.{DOMAIN}_ai_mode"
-            )
-            ai_mode = AI_MODE_AUTO
-            if ai_mode_state:
-                ai_mode = {
-                    "Automatik": AI_MODE_AUTO,
-                    "Sommer": AI_MODE_SUMMER,
-                    "Winter": AI_MODE_WINTER,
-                    "Manuell": AI_MODE_MANUAL,
-                }.get(ai_mode_state.state, AI_MODE_AUTO)
-
-            # ---------------------------
-            # MANUELL → KEINE KI
-            # ---------------------------
-            if ai_mode == AI_MODE_MANUAL:
-                return {
-                    "ai_status": "manual",
-                    "recommendation": "manuell",
-                    "debug": "MANUAL_MODE_ACTIVE",
-                }
-
-            # ---------------------------
-            # Entscheidung
-            # ---------------------------
+            # (V0.4.x) nur Bewertung/Empfehlung (falls deine Hardwaresteuerung in anderer Version liegt)
             ai_status = "standby"
             recommendation = "standby"
 
-            set_mode = None
-            set_input = 0
-            set_output = 0
-
-            # === SEHR TEUER → IMMER ENTLADE ===
-            if price_now >= very_expensive and soc > soc_min:
-                ai_status = "sehr_teuer"
-                recommendation = "entladen"
-                set_mode = "output"
-                set_output = min(max_discharge, deficit)
-
-            # === TEUER (Winter / Auto) ===
-            elif price_now >= expensive and soc > soc_min and ai_mode in (
-                AI_MODE_AUTO,
-                AI_MODE_WINTER,
-            ):
+            if price_now >= DEFAULT_EXPENSIVE_THRESHOLD and soc > DEFAULT_SOC_MIN:
                 ai_status = "teuer"
                 recommendation = "entladen"
-                set_mode = "output"
-                set_output = min(max_discharge, deficit)
-
-            # === SOMMER / AUTO → PV ÜBERSCHUSS LADEN ===
-            elif surplus > 100 and soc < soc_max and ai_mode in (
-                AI_MODE_AUTO,
-                AI_MODE_SUMMER,
-            ):
+            elif surplus > 100 and soc < DEFAULT_SOC_MAX:
                 ai_status = "pv_ueberschuss"
                 recommendation = "laden"
-                set_mode = "input"
-                set_input = min(max_charge, surplus)
 
-            # ---------------------------
-            # Hardware setzen
-            # ---------------------------
-            if set_mode:
-                await self._set_select(self.data_cfg[CONF_AC_MODE_ENTITY], set_mode)
-                await self._set_number(self.data_cfg[CONF_INPUT_LIMIT_ENTITY], set_input)
-                await self._set_number(self.data_cfg[CONF_OUTPUT_LIMIT_ENTITY], set_output)
-
-            # ---------------------------
-            # Rückgabe
-            # ---------------------------
             return {
                 "ai_status": ai_status,
                 "recommendation": recommendation,
@@ -194,10 +156,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "price_now": price_now,
                     "surplus": surplus,
                     "deficit": deficit,
-                    "mode": ai_mode,
-                    "set_mode": set_mode,
-                    "set_input_w": set_input,
-                    "set_output_w": set_output,
+                    "expensive_threshold": DEFAULT_EXPENSIVE_THRESHOLD,
+                    "soc_min_default": DEFAULT_SOC_MIN,
+                    "soc_max_default": DEFAULT_SOC_MAX,
                 },
             }
 
