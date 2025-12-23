@@ -1,85 +1,80 @@
+# custom_components/zendure_smartflow_ai/select.py
 from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     DOMAIN,
-    DATA_COORDINATOR,
-    SETTING_OPERATION_MODE,
-    SETTING_MANUAL_ACTION,
-    DEFAULT_OPERATION_MODE,
-    DEFAULT_MANUAL_ACTION,
+    AI_MODES,
+    MANUAL_ACTIONS,
     MODE_AUTOMATIC,
-    MODE_SUMMER,
-    MODE_WINTER,
-    MODE_MANUAL,
     MANUAL_STANDBY,
-    MANUAL_CHARGE,
-    MANUAL_DISCHARGE,
 )
+from .coordinator import ZendureSmartFlowCoordinator
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
-    coordinator = hass.data[DOMAIN][entry.entry_id][DATA_COORDINATOR]
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
-            ZendureOperationModeSelect(hass, entry, coordinator),
-            ZendureManualActionSelect(hass, entry, coordinator),
-        ],
-        True,
+            ZendureAiModeSelect(coordinator, entry),
+            ZendureManualActionSelect(coordinator, entry),
+        ]
     )
 
 
 class _BaseSelect(SelectEntity):
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, coordinator) -> None:
-        self.hass = hass
-        self.entry = entry
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry):
         self.coordinator = coordinator
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": "Zendure SmartFlow AI",
-            "manufacturer": "TK-Multimedia / Community",
-            "model": "SmartFlow AI",
-        }
+        self.entry = entry
 
-
-class ZendureOperationModeSelect(_BaseSelect):
-    _attr_name = "Zendure SmartFlow AI Moduswahl"
-    _attr_icon = "mdi:cog-outline"
-    _attr_options = [MODE_AUTOMATIC, MODE_SUMMER, MODE_WINTER, MODE_MANUAL]
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, entry.entry_id)},
+            name="Zendure SmartFlow AI",
+            manufacturer="Community",
+            model="SmartFlow AI",
+        )
 
     @property
-    def unique_id(self) -> str:
-        return f"{self.entry.entry_id}_operation_mode"
+    def available(self) -> bool:
+        return self.coordinator.last_update_success
 
-    @property
-    def current_option(self) -> str:
-        return (self.entry.options or {}).get(SETTING_OPERATION_MODE, DEFAULT_OPERATION_MODE)
+
+class ZendureAiModeSelect(_BaseSelect):
+    _attr_has_entity_name = True
+    _attr_translation_key = "ai_mode"
+
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_ai_mode"
+        self._attr_options = AI_MODES
+        self._attr_current_option = MODE_AUTOMATIC
 
     async def async_select_option(self, option: str) -> None:
-        opts = dict(self.entry.options or {})
-        opts[SETTING_OPERATION_MODE] = option
-        self.hass.config_entries.async_update_entry(self.entry, options=opts)
-        await self.coordinator.async_request_refresh()
+        self._attr_current_option = option
+        await self.coordinator.async_set_operation_mode(option)
+        self.async_write_ha_state()
 
 
 class ZendureManualActionSelect(_BaseSelect):
-    _attr_name = "Zendure SmartFlow AI Manuell Aktion"
-    _attr_icon = "mdi:hand-back-left-outline"
-    _attr_options = [MANUAL_STANDBY, MANUAL_CHARGE, MANUAL_DISCHARGE]
+    _attr_has_entity_name = True
+    _attr_translation_key = "manual_action"
 
-    @property
-    def unique_id(self) -> str:
-        return f"{self.entry.entry_id}_manual_action"
-
-    @property
-    def current_option(self) -> str:
-        return (self.entry.options or {}).get(SETTING_MANUAL_ACTION, DEFAULT_MANUAL_ACTION)
+    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry: ConfigEntry):
+        super().__init__(coordinator, entry)
+        self._attr_unique_id = f"{entry.entry_id}_manual_action"
+        self._attr_options = MANUAL_ACTIONS
+        self._attr_current_option = MANUAL_STANDBY
 
     async def async_select_option(self, option: str) -> None:
-        opts = dict(self.entry.options or {})
-        opts[SETTING_MANUAL_ACTION] = option
-        self.hass.config_entries.async_update_entry(self.entry, options=opts)
-        await self.coordinator.async_request_refresh()
+        self._attr_current_option = option
+        await self.coordinator.async_set_manual_action(option)
+        self.async_write_ha_state()
