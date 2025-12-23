@@ -1,9 +1,25 @@
 {
   "config": {
+    "error": {
+      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
+    },
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Select required entities. The integration will create its own controls (mode + limits) without external helpers."
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Die Integration erstellt danach ihre eigenen Regler und Modi – ohne externe Helper.",
+        "data": {
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "load_entity": "Hausverbrauch (W)",
+          "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input Limit (Number, W)",
+          "output_limit_entity": "Zendure Output Limit (Number, W)",
+          "grid_mode": "Netzsensor-Setup",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
+          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)"
+        }
       }
     }
   }
