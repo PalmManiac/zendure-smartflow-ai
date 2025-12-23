@@ -1,42 +1,60 @@
 from __future__ import annotations
-from homeassistant.const import Platform
 
-# ==================================================
-# Domain
-# ==================================================
-DOMAIN = "zendure_smartflow_ai"
+from typing import Any
+import voluptuous as vol
 
-# ==================================================
-# Platforms
-# ==================================================
-PLATFORMS = [
-    Platform.SENSOR,
-    Platform.NUMBER,
-    Platform.SELECT,
-]
+from homeassistant import config_entries
+from homeassistant.helpers import selector
 
-# ==================================================
-# Config Flow – Entity Auswahl
-# ==================================================
-CONF_SOC_ENTITY = "soc_entity"
-CONF_PV_ENTITY = "pv_entity"
-CONF_LOAD_ENTITY = "load_entity"
-CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
+from .const import (
+    DOMAIN,
+    CONF_SOC_ENTITY,
+    CONF_PV_ENTITY,
+    CONF_LOAD_ENTITY,
+    CONF_PRICE_EXPORT_ENTITY,
+    CONF_AC_MODE_ENTITY,
+    CONF_INPUT_LIMIT_ENTITY,
+    CONF_OUTPUT_LIMIT_ENTITY,
+)
 
-CONF_AC_MODE_ENTITY = "ac_mode_entity"
-CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
-CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
-# ==================================================
-# Defaults / Steuerparameter
-# ==================================================
-DEFAULT_SOC_MIN = 12.0
-DEFAULT_SOC_MAX = 100.0   # Herstellerempfehlung ✔
-DEFAULT_MAX_CHARGE = 2000.0
-DEFAULT_MAX_DISCHARGE = 700.0
-DEFAULT_EXPENSIVE_THRESHOLD = 0.35
+class ZendureSmartFlowAIConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    VERSION = 1
 
-# ==================================================
-# Update
-# ==================================================
-UPDATE_INTERVAL = 10
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+        if user_input is not None:
+            return self.async_create_entry(
+                title="Zendure SmartFlow AI",
+                data=user_input,
+            )
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_SOC_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Required(CONF_PV_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Required(CONF_LOAD_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="select")
+                ),
+                vol.Required(CONF_INPUT_LIMIT_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="number")
+                ),
+                vol.Required(CONF_OUTPUT_LIMIT_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="number")
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+        )
