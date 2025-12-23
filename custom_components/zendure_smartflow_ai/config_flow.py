@@ -1,6 +1,8 @@
+# custom_components/zendure_smartflow_ai/config_flow.py
 from __future__ import annotations
 
 from typing import Any
+
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -31,13 +33,16 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validierung Grid Split (optional)
-            if user_input.get(CONF_GRID_MODE) == GRID_MODE_SPLIT:
+            grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_SINGLE)
+            if grid_mode == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
-                    return self.async_show_form(step_id="user", data_schema=schema, errors=errors)  # type: ignore[name-defined]
 
-            return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
+            if not errors:
+                return self.async_create_entry(
+                    title="Zendure SmartFlow AI",
+                    data=user_input,
+                )
 
         schema = vol.Schema(
             {
@@ -51,12 +56,11 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Optional: Tibber Datenexport (attributes.data)
+                # optional – enables winter/price strategy
                 vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Zendure Steuerung
                 vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="select")
                 ),
@@ -67,7 +71,7 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="number")
                 ),
 
-                # Optional Grid – Reserve für spätere Erweiterungen
+                # optional grid sensor setup (future extension)
                 vol.Optional(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
@@ -89,4 +93,8 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             }
         )
 
-        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=schema,
+            errors=errors,
+        )
