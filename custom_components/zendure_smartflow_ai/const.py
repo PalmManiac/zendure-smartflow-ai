@@ -18,7 +18,6 @@ PLATFORMS: list[Platform] = [
 
 # ==================================================
 # Config Flow – Entity Auswahl
-# (IMMER vollständig halten!)
 # ==================================================
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
@@ -43,70 +42,27 @@ GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
 
 # ==================================================
-# AI / Betriebsmodi (Select-Entity)
-# ==================================================
-AI_MODE_ENTITY = "ai_mode"
-
-AI_MODE_AUTOMATIC = "automatic"
-AI_MODE_SUMMER = "summer"
-AI_MODE_WINTER = "winter"
-AI_MODE_MANUAL = "manual"
-
-AI_MODES = [
-    AI_MODE_AUTOMATIC,
-    AI_MODE_SUMMER,
-    AI_MODE_WINTER,
-    AI_MODE_MANUAL,
-]
-
-# ==================================================
 # Integration Settings (Number-Entities)
 # ==================================================
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
-
 SETTING_MAX_CHARGE = "max_charge"
 SETTING_MAX_DISCHARGE = "max_discharge"
-
 SETTING_PRICE_THRESHOLD = "price_threshold"
-SETTING_PRICE_THRESHOLD_HIGH = "price_threshold_high"  # v0.5.x (Sehr teuer)
 
 # ==================================================
-# Default-Werte (Hersteller & Praxis)
+# Default-Werte (stabil & Herstellerkonform)
 # ==================================================
 DEFAULT_SOC_MIN = 12.0
-DEFAULT_SOC_MAX = 100.0        # ✔ Hersteller- & Anwenderempfehlung
+DEFAULT_SOC_MAX = 100.0        # ✔ Hersteller- & Community-Empfehlung
 DEFAULT_MAX_CHARGE = 2000.0
 DEFAULT_MAX_DISCHARGE = 700.0
 
-DEFAULT_PRICE_THRESHOLD = 0.35       # „teuer“
-DEFAULT_PRICE_THRESHOLD_HIGH = 0.49  # „sehr teuer“
+DEFAULT_EXPENSIVE_THRESHOLD = 0.35
 
 # ==================================================
-# Sensor-States / Debug
+# Backward / Alias-Kompatibilität
+# (verhindert NameError bei älteren Codestellen)
 # ==================================================
-AI_STATUS_STANDBY = "standby"
-AI_STATUS_PV_SURPLUS = "pv_ueberschuss"
-AI_STATUS_EXPENSIVE = "teuer"
-AI_STATUS_VERY_EXPENSIVE = "sehr_teuer"
-AI_STATUS_SENSOR_INVALID = "sensor_invalid"
-AI_STATUS_PRICE_INVALID = "price_invalid"
-
-# ==================================================
-# Empfehlungen (Textlich)
-# ==================================================
-RECOMMENDATION_STANDBY = "standby"
-RECOMMENDATION_CHARGE = "laden"
-RECOMMENDATION_DISCHARGE = "entladen"
-RECOMMENDATION_HOLD = "halten"
-
-# ==================================================
-# Backward Compatibility / Aliase
-# (NIE entfernen!)
-# ==================================================
-DEFAULT_EXPENSIVE_THRESHOLD = DEFAULT_PRICE_THRESHOLD
-
-# ==================================================
-# Update / Timing
-# ==================================================
-UPDATE_INTERVAL = 10  # Sekunde
+DEFAULT_PRICE_THRESHOLD = DEFAULT_EXPENSIVE_THRESHOLD
+DEFAULT_EXPENSIVE = DEFAULT_EXPENSIVE_THRESHOLD
