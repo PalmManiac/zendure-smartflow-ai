@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from typing import Any
-
 import voluptuous as vol
 
 from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import selector, entity_registry as er
+from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
@@ -26,24 +24,6 @@ from .const import (
 )
 
 
-def _find_first_entity(
-    hass: HomeAssistant,
-    domain: str,
-    device_class: str | None = None,
-    unit: str | None = None,
-) -> str | None:
-    reg = er.async_get(hass)
-    for ent in reg.entities.values():
-        if ent.domain != domain:
-            continue
-        if device_class and ent.device_class != device_class:
-            continue
-        if unit and ent.unit_of_measurement != unit:
-            continue
-        return ent.entity_id
-    return None
-
-
 class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
@@ -51,37 +31,32 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validierung: bei Split müssen beide gesetzt sein
+            # Validierung Grid Split (optional)
             if user_input.get(CONF_GRID_MODE) == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
-                else:
-                    return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
-            else:
-                return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
+                    return self.async_show_form(step_id="user", data_schema=schema, errors=errors)  # type: ignore[name-defined]
 
-        hass = self.hass
-
-        soc_guess = _find_first_entity(hass, "sensor", "battery", "%")
-        pv_guess = _find_first_entity(hass, "sensor", "power", "W")
-        load_guess = _find_first_entity(hass, "sensor", "power", "W")
+            return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_SOC_ENTITY, default=soc_guess): selector.EntitySelector(
+                vol.Required(CONF_SOC_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                vol.Required(CONF_PV_ENTITY, default=pv_guess): selector.EntitySelector(
+                vol.Required(CONF_PV_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                vol.Required(CONF_LOAD_ENTITY, default=load_guess): selector.EntitySelector(
+                vol.Required(CONF_LOAD_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
+                # Optional: Tibber Datenexport (attributes.data)
                 vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
+                # Zendure Steuerung
                 vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="select")
                 ),
@@ -92,7 +67,8 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.EntitySelectorConfig(domain="number")
                 ),
 
-                vol.Required(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
+                # Optional Grid – Reserve für spätere Erweiterungen
+                vol.Optional(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=[
                             {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
