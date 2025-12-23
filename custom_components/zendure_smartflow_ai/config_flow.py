@@ -1,93 +1,42 @@
 from __future__ import annotations
+from homeassistant.const import Platform
 
-from typing import Any
+# ==================================================
+# Domain
+# ==================================================
+DOMAIN = "zendure_smartflow_ai"
 
-import voluptuous as vol
+# ==================================================
+# Platforms
+# ==================================================
+PLATFORMS = [
+    Platform.SENSOR,
+    Platform.NUMBER,
+    Platform.SELECT,
+]
 
-from homeassistant import config_entries
-from homeassistant.helpers import selector
+# ==================================================
+# Config Flow – Entity Auswahl
+# ==================================================
+CONF_SOC_ENTITY = "soc_entity"
+CONF_PV_ENTITY = "pv_entity"
+CONF_LOAD_ENTITY = "load_entity"
+CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
 
-from .const import (
-    DOMAIN,
-    CONF_SOC_ENTITY,
-    CONF_PV_ENTITY,
-    CONF_LOAD_ENTITY,
-    CONF_PRICE_EXPORT_ENTITY,
-    CONF_AC_MODE_ENTITY,
-    CONF_INPUT_LIMIT_ENTITY,
-    CONF_OUTPUT_LIMIT_ENTITY,
-)
+CONF_AC_MODE_ENTITY = "ac_mode_entity"
+CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
+CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
+# ==================================================
+# Defaults / Steuerparameter
+# ==================================================
+DEFAULT_SOC_MIN = 12.0
+DEFAULT_SOC_MAX = 100.0   # Herstellerempfehlung ✔
+DEFAULT_MAX_CHARGE = 2000.0
+DEFAULT_MAX_DISCHARGE = 700.0
+DEFAULT_EXPENSIVE_THRESHOLD = 0.35
 
-class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
-
-    async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_SINGLE)
-            if grid_mode == GRID_MODE_SPLIT:
-                if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
-                    errors["base"] = "grid_split_missing"
-
-            if not errors:
-                return self.async_create_entry(
-                    title="Zendure SmartFlow AI",
-                    data=user_input,
-                )
-
-        schema = vol.Schema(
-            {
-                vol.Required(CONF_SOC_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_PV_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Required(CONF_LOAD_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-
-                # optional – enables winter/price strategy
-                vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-
-                vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="select")
-                ),
-                vol.Required(CONF_INPUT_LIMIT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="number")
-                ),
-                vol.Required(CONF_OUTPUT_LIMIT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="number")
-                ),
-
-                # optional grid sensor setup (future extension)
-                vol.Optional(CONF_GRID_MODE, default=GRID_MODE_SINGLE): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
-                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
-                        ],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Optional(CONF_GRID_POWER_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_IMPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_EXPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=schema,
-            errors=errors,
-        )
+# ==================================================
+# Update
+# ==================================================
+UPDATE_INTERVAL = 10
