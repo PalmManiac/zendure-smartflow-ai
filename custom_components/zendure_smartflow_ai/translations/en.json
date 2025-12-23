@@ -1,20 +1,68 @@
 {
-  "state": {
-    "ai_status": {
-      "data_missing": "Price data missing",
-      "expensive_now_discharge": "Expensive now – discharge recommended",
-      "expensive_now_battery_protect": "Expensive now – battery protection",
-      "cheap_phase_coming": "Cheapest phase still ahead",
-      "cheap_phase_missed": "Cheapest phase missed",
-      "peak_coming_need_charge": "Peak coming – charging required",
-      "battery_ok": "Battery sufficiently charged"
+  "config": {
+    "error": {
+      "grid_split_missing": "With \"Two sensors\" you must select both import and export."
     },
-    "recommendation": {
-      "standby": "Standby",
-      "ai_charge": "AI charging",
-      "charge": "Charging",
-      "discharge": "Discharging",
-      "cheap_charge": "Cheap charging"
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI",
+        "description": "Select the sensors/entities available in your system. The integration then creates its own controls and modes – without external helpers.",
+        "data": {
+          "soc_entity": "Battery SoC (%)",
+          "pv_entity": "PV power (W)",
+          "load_entity": "House load (W)",
+          "price_export_entity": "Power price export (Tibber data export, optional)",
+          "ac_mode_entity": "Zendure AC mode (Select: input/output)",
+          "input_limit_entity": "Zendure input limit (Number, W)",
+          "output_limit_entity": "Zendure output limit (Number, W)",
+          "grid_mode": "Grid sensor setup",
+          "grid_power_entity": "Grid power (+import / –export) (optional)",
+          "grid_import_entity": "Import (W) (optional, with two sensors)",
+          "grid_export_entity": "Export (W) (optional, with two sensors)"
+        }
+      }
+    }
+  },
+
+  "entity": {
+    "sensor": {
+      "zendure_smartflow_ai": {
+        "ai_status": { "name": "AI status" },
+        "recommendation": { "name": "Recommendation" },
+        "debug": { "name": "AI debug" }
+      }
+    },
+    "number": {
+      "zendure_smartflow_ai": {
+        "soc_min": { "name": "SoC minimum" },
+        "soc_max": { "name": "SoC maximum" },
+        "max_charge": { "name": "Max charge power" },
+        "max_discharge": { "name": "Max discharge power" },
+        "expensive_threshold": { "name": "Expensive threshold" },
+        "very_expensive_threshold": { "name": "Very expensive threshold" },
+        "surplus_threshold": { "name": "PV surplus threshold" }
+      }
+    },
+    "select": {
+      "zendure_smartflow_ai": {
+        "ai_mode": {
+          "name": "Zendure SmartFlow AI mode",
+          "state": {
+            "automatic": "Automatic",
+            "summer": "Summer",
+            "winter": "Winter",
+            "manual": "Manual"
+          }
+        },
+        "manual_action": {
+          "name": "Manual action",
+          "state": {
+            "standby": "Standby",
+            "charge": "Charge",
+            "discharge": "Discharge"
+          }
+        }
+      }
     }
   }
 }
