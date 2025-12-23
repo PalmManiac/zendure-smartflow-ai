@@ -15,7 +15,7 @@
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
           "input_limit_entity": "Zendure Input Limit (Number, W)",
           "output_limit_entity": "Zendure Output Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup",
+          "grid_mode": "Netzsensor-Setup (optional)",
           "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
           "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
           "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)"
