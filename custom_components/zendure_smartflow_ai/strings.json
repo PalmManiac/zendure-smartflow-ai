@@ -1,29 +1,39 @@
 {
-  "title": "Zendure SmartFlow AI",
-
   "config": {
     "step": {
       "user": {
-        "title": "Zendure SmartFlow AI einrichten",
-        "description": "Wähle die Sensoren und Steuer-Entitäten aus, die in deiner Installation vorhanden sind. Die Integration arbeitet vollständig ohne externe Helper oder Automationen.",
+        "title": "Zendure SmartFlow AI",
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Der Strompreis-Export ist optional (Sommer/PV-Modus funktioniert auch ohne).",
         "data": {
-          "soc_entity": "Akkuladestand (SoC) in Prozent",
-          "pv_entity": "PV-Leistung (Watt)",
-          "load_entity": "Hausverbrauch (Watt)",
-          "price_export_entity": "Strompreis-Export (z. B. Tibber, optional)",
-          "ac_mode_entity": "Zendure AC-Betriebsmodus (Select)",
-          "input_limit_entity": "Zendure Ladeleistung (Input Limit, Watt)",
-          "output_limit_entity": "Zendure Entladeleistung (Output Limit, Watt)",
-          "grid_mode": "Netzsensor-Konfiguration",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung)",
-          "grid_import_entity": "Netzbezug (Watt)",
-          "grid_export_entity": "Netzeinspeisung (Watt)"
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "load_entity": "Hausverbrauch (W)",
+          "price_export_entity": "Strompreis-Export (Tibber Datenexport, optional)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure Input Limit (Number, W)",
+          "output_limit_entity": "Zendure Output Limit (Number, W)"
         }
       }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "Status" },
+      "recommendation": { "name": "Steuerungsempfehlung" },
+      "debug": { "name": "Debug" }
     },
-    "error": {
-      "grid_split_missing": "Bei der Auswahl von zwei Netzsensoren müssen sowohl Bezug als auch Einspeisung angegeben werden.",
-      "invalid_entity": "Eine oder mehrere ausgewählte Entitäten sind ungültig."
+    "number": {
+      "soc_min": { "name": "SoC Minimum" },
+      "soc_max": { "name": "SoC Maximum" },
+      "max_charge": { "name": "Max. Ladeleistung" },
+      "max_discharge": { "name": "Max. Entladeleistung" },
+      "price_threshold": { "name": "Schwelle: Teuer" },
+      "very_expensive_threshold": { "name": "Schwelle: Sehr teuer" },
+      "freeze_seconds": { "name": "Freeze (Sekunden)" }
+    },
+    "select": {
+      "ai_mode": { "name": "Moduswahl" },
+      "manual_action": { "name": "Manuelle Aktion" }
     }
   }
 }
