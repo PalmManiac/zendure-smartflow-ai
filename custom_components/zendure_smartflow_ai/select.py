@@ -1,79 +1,90 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
-from homeassistant.components.select import SelectEntity, SelectEntityDescription
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.components.select import SelectEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     DOMAIN,
-    SETTING_AI_MODE, SETTING_MANUAL_ACTION,
-    AI_MODES, MANUAL_ACTIONS,
-    AI_MODE_AUTOMATIC, MANUAL_STANDBY,
-)
-from .coordinator import ZendureSmartFlowCoordinator
-
-
-@dataclass(frozen=True)
-class ZSelectDescription(SelectEntityDescription):
-    setting_key: str = ""
-    default: str = ""
-    options_list: list[str] | None = None
-
-
-SELECTS: tuple[ZSelectDescription, ...] = (
-    ZSelectDescription(
-        key="ai_mode",
-        name="Moduswahl",
-        translation_key="ai_mode",
-        icon="mdi:robot",
-        setting_key=SETTING_AI_MODE,
-        default=AI_MODE_AUTOMATIC,
-        options_list=AI_MODES,
-    ),
-    ZSelectDescription(
-        key="manual_action",
-        name="Manuelle Aktion",
-        translation_key="manual_action",
-        icon="mdi:gesture-tap",
-        setting_key=SETTING_MANUAL_ACTION,
-        default=MANUAL_STANDBY,
-        options_list=MANUAL_ACTIONS,
-    ),
+    AI_MODE_AUTOMATIC,
+    AI_MODE_SUMMER,
+    AI_MODE_WINTER,
+    AI_MODE_MANUAL,
+    MANUAL_ACTION_STANDBY,
+    MANUAL_ACTION_CHARGE,
+    MANUAL_ACTION_DISCHARGE,
 )
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
-    coordinator: ZendureSmartFlowCoordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
-    async_add_entities([ZendureSmartFlowSelect(coordinator, entry, d) for d in SELECTS])
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    async_add_entities(
+        [
+            ZendureAiModeSelect(entry),
+            ZendureManualActionSelect(entry),
+        ],
+        True,
+    )
 
 
-class ZendureSmartFlowSelect(CoordinatorEntity[ZendureSmartFlowCoordinator], SelectEntity):
+class _BaseSelect(SelectEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: ZendureSmartFlowCoordinator, entry, desc: ZSelectDescription) -> None:
-        super().__init__(coordinator)
-        self.entity_description = desc
-        self._entry = entry
-        self._attr_unique_id = f"{entry.entry_id}_{desc.key}"
-        self._attr_device_info = {
-            "identifiers": {(DOMAIN, entry.entry_id)},
-            "name": "Zendure SmartFlow AI",
-            "manufacturer": "PalmManiac",
-            "model": "SmartFlow AI",
-        }
-        self._attr_options = desc.options_list or []
+    def __init__(self, entry: ConfigEntry, unique: str, name: str):
+        self.entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_{unique}"
+        self._attr_name = name
 
     @property
-    def current_option(self) -> str | None:
-        v = self._entry.options.get(self.entity_description.setting_key, self.entity_description.default)
-        s = str(v) if v is not None else self.entity_description.default
-        return s
+    def device_info(self):
+        return {
+            "identifiers": {(DOMAIN, self.entry.entry_id)},
+            "name": "Zendure SmartFlow AI",
+            "manufacturer": "Zendure",
+            "model": "SmartFlow AI",
+        }
+
+
+class ZendureAiModeSelect(_BaseSelect):
+    def __init__(self, entry: ConfigEntry):
+        super().__init__(entry, "ai_mode", "AI Modus")
+        self.entity_id = f"select.{DOMAIN}_ai_mode"
+        self._attr_options = [
+            AI_MODE_AUTOMATIC,
+            AI_MODE_SUMMER,
+            AI_MODE_WINTER,
+            AI_MODE_MANUAL,
+        ]
+        self._current = AI_MODE_AUTOMATIC
+
+    @property
+    def current_option(self) -> str:
+        return self._current
 
     async def async_select_option(self, option: str) -> None:
-        new_opts = dict(self._entry.options)
-        new_opts[self.entity_description.setting_key] = option
-        self.hass.config_entries.async_update_entry(self._entry, options=new_opts)
+        self._current = option
         self.async_write_ha_state()
-        await self.coordinator.async_request_refresh()
+
+
+class ZendureManualActionSelect(_BaseSelect):
+    def __init__(self, entry: ConfigEntry):
+        super().__init__(entry, "manual_action", "Manuelle Aktion")
+        self.entity_id = f"select.{DOMAIN}_manual_action"
+        self._attr_options = [
+            MANUAL_ACTION_STANDBY,
+            MANUAL_ACTION_CHARGE,
+            MANUAL_ACTION_DISCHARGE,
+        ]
+        self._current = MANUAL_ACTION_STANDBY
+
+    @property
+    def current_option(self) -> str:
+        return self._current
+
+    async def async_select_option(self, option: str) -> None:
+        self._current = option
+        self.async_write_ha_state()
