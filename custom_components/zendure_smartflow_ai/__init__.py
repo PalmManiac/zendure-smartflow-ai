@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import ZendureSmartFlowCoordinator
@@ -20,9 +21,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {
-        "coordinator": coordinator,
-    }
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    # Device anlegen (für saubere Gerätezuordnung)
+    device_reg = dr.async_get(hass)
+    device_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        manufacturer="Zendure",
+        name="Zendure SmartFlow AI",
+        model="SmartFlow AI",
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
