@@ -72,6 +72,12 @@ DEFAULT_EXPENSIVE_THRESHOLD = 0.35
 DEFAULT_VERY_EXPENSIVE_THRESHOLD = 0.49
 
 # ==================================================
+# Backward compatibility / Aliases
+# ==================================================
+DEFAULT_PRICE_THRESHOLD = DEFAULT_EXPENSIVE_THRESHOLD
+VERY_EXPENSIVE_THRESHOLD = DEFAULT_VERY_EXPENSIVE_THRESHOL
+
+# ==================================================
 # Update / Timing
 # ==================================================
 UPDATE_INTERVAL = 10  # Sekunden
