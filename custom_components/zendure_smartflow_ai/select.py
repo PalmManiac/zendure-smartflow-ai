@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
@@ -18,11 +19,13 @@ from .const import (
     MANUAL_STANDBY,
 )
 
+
 @dataclass(frozen=True, kw_only=True)
 class ZendureSelectEntityDescription(SelectEntityDescription):
     runtime_key: str
     options_list: list[str]
     default_option: str
+
 
 SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
     ZendureSelectEntityDescription(
@@ -43,16 +46,11 @@ SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
     ),
 )
 
-async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: ConfigEntry,
-    add_entities: AddEntitiesCallback,
-) -> None:
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities(
-        ZendureSmartFlowSelect(entry, coordinator, desc)
-        for desc in SELECTS
-    )
+    add_entities([ZendureSmartFlowSelect(entry, coordinator, d) for d in SELECTS])
+
 
 class ZendureSmartFlowSelect(SelectEntity):
     _attr_has_entity_name = True
@@ -60,6 +58,7 @@ class ZendureSmartFlowSelect(SelectEntity):
     def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSelectEntityDescription) -> None:
         self.entity_description = description
         self.coordinator = coordinator
+        self._entry = entry
 
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
         self._attr_device_info = {
@@ -90,6 +89,4 @@ class ZendureSmartFlowSelect(SelectEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self.async_write_ha_state)
-        )
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
