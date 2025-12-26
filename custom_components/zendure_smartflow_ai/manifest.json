@@ -1,16 +1,12 @@
 {
   "domain": "zendure_smartflow_ai",
   "name": "Zendure SmartFlow AI",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "documentation": "https://github.com/PalmManiac/zendure-smartflow-ai",
   "issue_tracker": "https://github.com/PalmManiac/zendure-smartflow-ai/issues",
   "codeowners": ["@PalmManiac"],
   "config_flow": true,
-  "integration_type": "hub",
   "iot_class": "local_polling",
   "requirements": [],
-  "dependencies": [],
-  "after_dependencies": [],
-  "loggers": [],
-  "platforms": ["sensor", "number", "select"]
+  "integration_type": "hub"
 }
