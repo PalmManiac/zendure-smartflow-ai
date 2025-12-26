@@ -7,37 +7,15 @@
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
-          "grid_mode": "Netzsensor-Setup (optional)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
-          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
-          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
-          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
-          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
-          "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)"
+          "price_export_entity": "Strompreis-Export (optional)",
+          "ac_mode_entity": "Zendure AC-Modus (input / output)",
+          "input_limit_entity": "Zendure Ladeleistung (W)",
+          "output_limit_entity": "Zendure Entladeleistung (W)"
         }
       }
-    },
-    "error": {
-      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
     }
   },
   "entity": {
-    "sensor": {
-      "status": { "name": "Status" },
-      "ai_status": { "name": "KI-Status" },
-      "ai_debug": { "name": "KI-Debug" },
-      "load": { "name": "Hausverbrauch (berechnet)" }
-    },
-    "number": {
-      "soc_min": { "name": "SoC Minimum (%)" },
-      "soc_max": { "name": "SoC Maximum (%)" },
-      "max_charge": { "name": "Max. Ladeleistung (W)" },
-      "max_discharge": { "name": "Max. Entladeleistung (W)" },
-      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
-      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" }
-    },
     "select": {
       "ai_mode": {
         "name": "Zendure SmartFlow AI – Betriebsmodus",
