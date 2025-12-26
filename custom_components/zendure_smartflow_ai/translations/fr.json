@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Zendure SmartFlow AI",
+        "description": "Sélectionnez les capteurs/entités disponibles. L’intégration crée ses propres réglages et modes – sans helpers externes.",
+        "data": {
+          "soc_entity": "État de charge (SoC) (%)",
+          "pv_entity": "Puissance PV (W)",
+          "grid_mode": "Configuration réseau (optionnel)",
+          "grid_power_entity": "Puissance réseau (+import / –export) (optionnel)",
+          "grid_import_entity": "Import (W) (optionnel, mode séparé)",
+          "grid_export_entity": "Export (W) (optionnel, mode séparé)",
+          "price_export_entity": "Export des prix (optionnel, ex. Tibber)",
+          "price_now_entity": "Prix actuel (optionnel, €/kWh)",
+          "ac_mode_entity": "Mode AC Zendure (select: input/output)",
+          "input_limit_entity": "Limite d’entrée Zendure (W)",
+          "output_limit_entity": "Limite de sortie Zendure (W)"
+        }
+      }
+    },
+    "error": {
+      "grid_split_missing": "En mode « Deux capteurs », vous devez sélectionner l’import et l’export."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "Statut" },
+      "ai_status": { "name": "Statut IA" },
+      "ai_debug": { "name": "Débogage IA" },
+      "load": { "name": "Consommation maison (calculée)" }
+    },
+    "number": {
+      "soc_min": { "name": "SoC minimum (%)" },
+      "soc_max": { "name": "SoC maximum (%)" },
+      "max_charge": { "name": "Puissance max de charge (W)" },
+      "max_discharge": { "name": "Puissance max de décharge (W)" },
+      "price_threshold": { "name": "Seuil « cher » (€/kWh)" },
+      "very_expensive_threshold": { "name": "Seuil « très cher » (€/kWh)" }
+    },
+    "select": {
+      "ai_mode": {
+        "name": "Zendure SmartFlow AI – Mode",
+        "options": {
+          "automatic": "Automatique",
+          "summer": "Été",
+          "winter": "Hiver",
+          "manual": "Manuel"
+        }
+      },
+      "manual_action": {
+        "name": "Zendure SmartFlow AI – Action manuelle",
+        "options": {
+          "standby": "Veille",
+          "charge": "Charger",
+          "discharge": "Décharger"
+        }
+      }
+    }
+  }
+}
