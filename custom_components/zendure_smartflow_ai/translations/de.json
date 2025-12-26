@@ -3,19 +3,19 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt danach eigene Regler und Modi – ohne externe Helper.",
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Die Integration erstellt danach ihre eigenen Regler und Modi – ohne externe Helper.",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
+          "grid_mode": "Netzsensor-Setup (optional)",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
+          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
           "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
           "price_now_entity": "Aktueller Preis (optional, €/kWh)",
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
           "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup (optional)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
-          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
-          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)"
+          "output_limit_entity": "Zendure Output-Limit (Number, W)"
         }
       }
     },
@@ -27,7 +27,8 @@
     "sensor": {
       "status": { "name": "Status" },
       "ai_status": { "name": "KI-Status" },
-      "ai_debug": { "name": "KI-Debug" }
+      "ai_debug": { "name": "KI-Debug" },
+      "load": { "name": "Hausverbrauch (berechnet)" }
     },
     "number": {
       "soc_min": { "name": "SoC Minimum (%)" },
