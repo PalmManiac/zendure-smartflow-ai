@@ -8,6 +8,19 @@ from homeassistant.const import Platform
 # ==================================================
 DOMAIN = "zendure_smartflow_ai"
 
+# ==================================================
+# Status / Runtime States
+# ==================================================
+STATUS_INIT = "init"
+STATUS_OK = "ok"
+STATUS_ERROR = "error"
+STATUS_DISABLED = "disabled"
+
+AI_STATUS_IDLE = "idle"
+AI_STATUS_CHARGE = "charge"
+AI_STATUS_DISCHARGE = "discharge"
+AI_STATUS_BLOCKED = "blocked"
+
 INTEGRATION_NAME = "Zendure SmartFlow AI"
 INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "SmartFlow AI"
