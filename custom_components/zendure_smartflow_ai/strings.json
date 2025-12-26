@@ -3,77 +3,12 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Select the sensors/entities available in your system. The integration creates its own controls and modes (no external helpers required).",
-        "data": {
-          "soc_entity": "Battery SoC (%)",
-          "pv_entity": "PV Power (W)",
-          "load_entity": "House consumption (W)",
-          "price_export_entity": "Price export sensor (optional, e.g. Tibber data export)",
-          "price_now_entity": "Current price sensor (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC mode (select: input/output)",
-          "input_limit_entity": "Zendure input limit (number, W)",
-          "output_limit_entity": "Zendure output limit (number, W)",
-          "grid_mode": "Grid sensor setup (optional)",
-          "grid_power_entity": "Grid power (+import / −export) (optional)",
-          "grid_import_entity": "Import (W) (optional, split mode)",
-          "grid_export_entity": "Export (W) (optional, split mode)"
-        }
+        "description": "Diese Integration steuert dein Zendure SolarFlow System automatisch anhand von PV-Überschuss und Strompreisen."
       }
     },
     "error": {
-      "grid_split_missing": "For \"two sensors\" you must select both import and export."
-    }
-  },
-  "entity": {
-    "sensor": {
-      "status": {
-        "name": "Status"
-      },
-      "ai_status": {
-        "name": "AI Status"
-      },
-      "ai_debug": {
-        "name": "AI Debug"
-      }
-    },
-    "number": {
-      "soc_min": {
-        "name": "SoC minimum (%)"
-      },
-      "soc_max": {
-        "name": "SoC maximum (%)"
-      },
-      "max_charge": {
-        "name": "Max charge power (W)"
-      },
-      "max_discharge": {
-        "name": "Max discharge power (W)"
-      },
-      "price_threshold": {
-        "name": "Expensive threshold (€/kWh)"
-      },
-      "very_expensive_threshold": {
-        "name": "Very expensive threshold (€/kWh)"
-      }
-    },
-    "select": {
-      "ai_mode": {
-        "name": "AI operating mode",
-        "options": {
-          "automatic": "Automatic",
-          "summer": "Summer",
-          "winter": "Winter",
-          "manual": "Manual"
-        }
-      },
-      "manual_action": {
-        "name": "Manual action",
-        "options": {
-          "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
-        }
-      }
+      "grid_single_missing": "Bitte wähle einen Netzleistungssensor.",
+      "grid_split_missing": "Bitte wähle sowohl Bezugs- als auch Einspeisungssensor."
     }
   }
 }
