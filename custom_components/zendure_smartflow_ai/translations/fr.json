@@ -3,24 +3,24 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Sélectionnez les capteurs/entités disponibles. L’intégration crée ensuite ses propres contrôles et modes – sans helpers externes.",
+        "description": "Sélectionnez les capteurs / entités disponibles. L’intégration crée ses propres réglages, capteurs et modes – sans helpers externes.",
         "data": {
-          "soc_entity": "Niveau de batterie (SoC) en %",
+          "soc_entity": "État de charge de la batterie (SoC) en %",
           "pv_entity": "Puissance PV (W)",
+          "grid_mode": "Configuration du réseau (optionnel)",
           "grid_power_entity": "Puissance réseau (+import / –export) (optionnel)",
-          "grid_import_entity": "Import réseau (W) (optionnel, pour deux capteurs)",
-          "grid_export_entity": "Export réseau (W) (optionnel, pour deux capteurs)",
-          "price_export_entity": "Export du prix (optionnel, ex. export Tibber)",
+          "grid_import_entity": "Import réseau (W) (optionnel, avec deux capteurs)",
+          "grid_export_entity": "Export réseau (W) (optionnel, avec deux capteurs)",
+          "price_export_entity": "Export des prix de l’électricité (optionnel, ex. Tibber)",
           "price_now_entity": "Prix actuel (optionnel, €/kWh)",
-          "ac_mode_entity": "Mode AC Zendure (Select: input/output)",
+          "ac_mode_entity": "Mode AC Zendure (Select : input / output)",
           "input_limit_entity": "Limite d’entrée Zendure (Number, W)",
-          "output_limit_entity": "Limite de sortie Zendure (Number, W)",
-          "grid_mode": "Configuration capteurs réseau (optionnel)"
+          "output_limit_entity": "Limite de sortie Zendure (Number, W)"
         }
       }
     },
     "error": {
-      "grid_split_missing": "Avec \"Deux capteurs\", l’import et l’export doivent être sélectionnés."
+      "grid_split_missing": "Avec « deux capteurs », l’import et l’export doivent tous les deux être sélectionnés."
     }
   },
   "entity": {
@@ -34,8 +34,14 @@
       "ai_debug": {
         "name": "Debug IA"
       },
+      "recommendation": {
+        "name": "Recommandation"
+      },
       "house_load": {
-        "name": "Consommation maison"
+        "name": "Consommation du foyer (calculée)"
+      },
+      "price_now": {
+        "name": "Prix actuel de l’électricité"
       }
     },
     "number": {
@@ -46,10 +52,10 @@
         "name": "SoC maximum (%)"
       },
       "max_charge": {
-        "name": "Puissance max de charge (W)"
+        "name": "Puissance de charge max. (W)"
       },
       "max_discharge": {
-        "name": "Puissance max de décharge (W)"
+        "name": "Puissance de décharge max. (W)"
       },
       "price_threshold": {
         "name": "Seuil « cher » (€/kWh)"
