@@ -8,7 +8,7 @@ DOMAIN = "zendure_smartflow_ai"
 INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "Zendure SmartFlow AI"
 INTEGRATION_NAME = "Zendure SmartFlow AI"
-INTEGRATION_VERSION = "0.10.0"
+INTEGRATION_VERSION = "0.10.1"
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
