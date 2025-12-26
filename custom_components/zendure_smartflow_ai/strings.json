@@ -3,77 +3,59 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Select the sensors/entities available in your setup. The integration will create its own controls and modes – without external helpers.",
+        "description": "Wähle die Sensoren/Entitäten aus. Die Integration erstellt eigene Regler, Sensoren und Modi – ohne externe Helper.",
         "data": {
-          "soc_entity": "Battery state of charge (SoC) in %",
-          "pv_entity": "PV power (W)",
-          "grid_power_entity": "Grid power (+import / –export) (optional)",
-          "grid_import_entity": "Grid import (W) (optional, for split sensors)",
-          "grid_export_entity": "Grid export (W) (optional, for split sensors)",
-          "price_export_entity": "Electricity price export (optional, e.g. Tibber data export)",
-          "price_now_entity": "Current price (optional, €/kWh)",
+          "soc_entity": "Akkustand (SoC) in %",
+          "pv_entity": "PV-Leistung (W)",
+          "grid_mode": "Netzsensor-Setup (optional)",
+          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (optional)",
+          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
+          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
+          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
-          "input_limit_entity": "Zendure Input Limit (Number, W)",
-          "output_limit_entity": "Zendure Output Limit (Number, W)",
-          "grid_mode": "Grid sensor setup (optional)"
+          "input_limit_entity": "Zendure Input-Limit (Number, W)",
+          "output_limit_entity": "Zendure Output-Limit (Number, W)"
         }
       }
     },
     "error": {
-      "grid_split_missing": "With \"Two sensors\", both import and export must be selected."
+      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
     }
   },
   "entity": {
     "sensor": {
-      "status": {
-        "name": "Status"
-      },
-      "ai_status": {
-        "name": "AI status"
-      },
-      "ai_debug": {
-        "name": "AI debug"
-      },
-      "house_load": {
-        "name": "House load"
-      }
+      "status": { "name": "Status" },
+      "ai_status": { "name": "KI-Status" },
+      "ai_debug": { "name": "KI-Debug" },
+      "recommendation": { "name": "Empfehlung" },
+      "house_load": { "name": "Hausverbrauch (berechnet)" },
+      "price_now": { "name": "Aktueller Strompreis" }
     },
     "number": {
-      "soc_min": {
-        "name": "SoC minimum (%)"
-      },
-      "soc_max": {
-        "name": "SoC maximum (%)"
-      },
-      "max_charge": {
-        "name": "Max charge power (W)"
-      },
-      "max_discharge": {
-        "name": "Max discharge power (W)"
-      },
-      "price_threshold": {
-        "name": "Expensive threshold (€/kWh)"
-      },
-      "very_expensive_threshold": {
-        "name": "Very expensive threshold (€/kWh)"
-      }
+      "soc_min": { "name": "SoC Minimum (%)" },
+      "soc_max": { "name": "SoC Maximum (%)" },
+      "max_charge": { "name": "Max. Ladeleistung (W)" },
+      "max_discharge": { "name": "Max. Entladeleistung (W)" },
+      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
+      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" }
     },
     "select": {
       "ai_mode": {
-        "name": "Zendure SmartFlow AI – Operating mode",
+        "name": "Zendure SmartFlow AI – Betriebsmodus",
         "options": {
-          "automatic": "Automatic",
-          "summer": "Summer",
+          "automatic": "Automatik",
+          "summer": "Sommer",
           "winter": "Winter",
-          "manual": "Manual"
+          "manual": "Manuell"
         }
       },
       "manual_action": {
-        "name": "Zendure SmartFlow AI – Manual action",
+        "name": "Zendure SmartFlow AI – Manuelle Aktion",
         "options": {
           "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
+          "charge": "Laden",
+          "discharge": "Entladen"
         }
       }
     }
