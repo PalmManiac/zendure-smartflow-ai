@@ -3,63 +3,94 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Sélectionnez les capteurs utilisés pour le contrôle intelligent. L’intégration calcule elle-même la consommation, le surplus PV et les recommandations.",
+        "description": "Sélectionne les capteurs/entités. La consommation de la maison est calculée en interne à partir du PV + capteur réseau (aucun helper nécessaire).",
         "data": {
-          "soc_entity": "État de charge de la batterie (SoC) en %",
-          "pv_entity": "Puissance photovoltaïque (W)",
-          "grid_power_entity": "Puissance réseau (+import / −export)",
-          "price_entity": "Prix de l’électricité (€/kWh, optionnel)",
-          "ac_mode_entity": "Mode AC Zendure",
-          "input_limit_entity": "Puissance de charge Zendure (W)",
-          "output_limit_entity": "Puissance de décharge Zendure (W)"
+          "soc_entity": "Niveau de batterie (SoC) en %",
+          "pv_entity": "Puissance PV (W)",
+          "price_export_entity": "Export prix électricité (optionnel, ex. export Tibber)",
+          "price_now_entity": "Prix actuel (optionnel, €/kWh)",
+          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
+          "input_limit_entity": "Zendure limite d’entrée (Number, W)",
+          "output_limit_entity": "Zendure limite de sortie (Number, W)",
+          "grid_mode": "Configuration capteur réseau (recommandé)",
+          "grid_power_entity": "Puissance réseau (+import / –export) (mode 1 capteur)",
+          "grid_import_entity": "Import (W) (mode 2 capteurs)",
+          "grid_export_entity": "Export (W) (mode 2 capteurs)"
         }
       }
+    },
+    "error": {
+      "grid_split_missing": "En mode « Deux capteurs », l’import et l’export doivent être sélectionnés."
     }
   },
-
   "entity": {
     "sensor": {
       "status": {
-        "name": "État du système",
+        "name": "Statut",
         "state": {
-          "init": "Initialisation",
-          "ok": "Actif",
+          "init": "Init",
+          "ok": "OK",
+          "sensor_invalid": "Capteur invalide",
+          "price_invalid": "Prix invalide",
           "error": "Erreur"
         }
       },
       "ai_status": {
         "name": "Statut IA",
         "state": {
-          "standby": "En attente",
-          "pv_surplus": "Surplus photovoltaïque détecté",
-          "cover_deficit": "Compensation de la consommation réseau",
-          "charging": "Batterie en charge",
-          "discharging": "Batterie en décharge"
+          "standby": "Veille",
+          "pv_charge": "Charge surplus PV",
+          "cover_deficit": "Compenser l’import",
+          "price_peak": "Pic de prix",
+          "manual_active": "Manuel actif",
+          "waiting": "En attente"
         }
       },
       "recommendation": {
-        "name": "Recommandation IA",
+        "name": "Recommandation",
         "state": {
-          "standby": "Aucune action recommandée",
-          "charge": "Charge recommandée",
-          "discharge": "Décharge recommandée"
+          "standby": "Veille",
+          "charge": "Charger",
+          "discharge": "Décharger"
         }
       },
+      "ai_debug": {
+        "name": "Debug IA"
+      },
       "house_load": {
-        "name": "Consommation du logement"
+        "name": "Consommation maison (calculée)"
       },
       "price_now": {
-        "name": "Prix actuel de l’électricité"
+        "name": "Prix actuel"
       }
     },
-
+    "number": {
+      "soc_min": {
+        "name": "SoC minimum (%)"
+      },
+      "soc_max": {
+        "name": "SoC maximum (%)"
+      },
+      "max_charge": {
+        "name": "Puissance de charge max (W)"
+      },
+      "max_discharge": {
+        "name": "Puissance de décharge max (W)"
+      },
+      "price_threshold": {
+        "name": "Seuil « cher » (€/kWh)"
+      },
+      "very_expensive_threshold": {
+        "name": "Seuil « très cher » (€/kWh)"
+      }
+    },
     "select": {
       "ai_mode": {
         "name": "Zendure SmartFlow AI – Mode de fonctionnement",
         "options": {
           "automatic": "Automatique",
-          "summer": "Mode été",
-          "winter": "Mode hiver",
+          "summer": "Été",
+          "winter": "Hiver",
           "manual": "Manuel"
         }
       },
