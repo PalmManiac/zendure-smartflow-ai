@@ -3,19 +3,19 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Hausverbrauch wird intern aus PV + Netzsensor berechnet (kein Helper nötig).",
+        "description": "Wähle die Sensoren/Entitäten aus, die bei dir vorhanden sind. Die Integration erstellt danach ihre eigenen Regler und Modi – ohne externe Helper.",
         "data": {
           "soc_entity": "Akkustand (SoC) in %",
           "pv_entity": "PV-Leistung (W)",
-          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
           "price_now_entity": "Aktueller Preis (optional, €/kWh)",
+          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
+          "grid_mode": "Netzsensor-Setup",
+          "grid_power_entity": "Netzleistung (+Bezug / – Einspeisung) (optional)",
+          "grid_import_entity": "Bezug (W) (optional, bei zwei Sensoren)",
+          "grid_export_entity": "Einspeisung (W) (optional, bei zwei Sensoren)",
           "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
           "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup (empfohlen)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung) (bei Ein-Sensor-Setup)",
-          "grid_import_entity": "Bezug (W) (bei Zwei-Sensor-Setup)",
-          "grid_export_entity": "Einspeisung (W) (bei Zwei-Sensor-Setup)"
+          "output_limit_entity": "Zendure Output-Limit (Number, W)"
         }
       }
     },
@@ -27,62 +27,45 @@
     "sensor": {
       "status": {
         "name": "Status",
-        "state": {
+        "options": {
           "init": "Init",
           "ok": "OK",
           "sensor_invalid": "Sensor ungültig",
-          "price_invalid": "Preis ungültig",
-          "error": "Fehler"
+          "price_missing": "Preis fehlt"
         }
       },
       "ai_status": {
         "name": "KI-Status",
-        "state": {
+        "options": {
           "standby": "Standby",
-          "pv_charge": "PV-Überschuss laden",
+          "charge_surplus": "PV-Überschuss laden",
           "cover_deficit": "Bezug ausgleichen",
-          "price_peak": "Preisspitze",
-          "manual_active": "Manuell aktiv",
-          "waiting": "Warten"
+          "very_expensive": "Sehr teuer",
+          "profit_margin": "Gewinnmarge erreicht",
+          "manual": "Manuell"
         }
       },
       "recommendation": {
         "name": "Steuerungsempfehlung",
-        "state": {
+        "options": {
           "standby": "Standby",
           "charge": "Laden",
           "discharge": "Entladen"
         }
       },
-      "ai_debug": {
-        "name": "KI-Debug"
-      },
-      "house_load": {
-        "name": "Hausverbrauch (berechnet)"
-      },
-      "price_now": {
-        "name": "Aktueller Strompreis"
-      }
+      "ai_debug": { "name": "KI-Debug" },
+      "house_load": { "name": "Hausverbrauch" },
+      "price_now": { "name": "Aktueller Preis" },
+      "avg_charge_price": { "name": "Ø Ladepreis Akku" },
+      "total_profit": { "name": "Kumulierte Einsparung / Gewinn" }
     },
     "number": {
-      "soc_min": {
-        "name": "SoC Minimum (%)"
-      },
-      "soc_max": {
-        "name": "SoC Maximum (%)"
-      },
-      "max_charge": {
-        "name": "Max. Ladeleistung (W)"
-      },
-      "max_discharge": {
-        "name": "Max. Entladeleistung (W)"
-      },
-      "price_threshold": {
-        "name": "Teuer-Schwelle (€/kWh)"
-      },
-      "very_expensive_threshold": {
-        "name": "Sehr teuer-Schwelle (€/kWh)"
-      }
+      "soc_min": { "name": "SoC Minimum (%)" },
+      "soc_max": { "name": "SoC Maximum (%)" },
+      "max_charge": { "name": "Max. Ladeleistung (W)" },
+      "max_discharge": { "name": "Max. Entladeleistung (W)" },
+      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" },
+      "profit_margin_percent": { "name": "Gewinnmarge (%)" }
     },
     "select": {
       "ai_mode": {
