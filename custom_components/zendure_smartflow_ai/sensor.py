@@ -2,11 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-)
+from homeassistant.components.sensor import SensorEntity, SensorEntityDescription, SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -17,9 +13,9 @@ from .const import (
     INTEGRATION_MANUFACTURER,
     INTEGRATION_MODEL,
     INTEGRATION_VERSION,
-    STATUS_OPTIONS,
-    AI_STATUS_OPTIONS,
-    RECOMMENDATION_OPTIONS,
+    ENUM_STATUS,
+    ENUM_AI_STATUS,
+    ENUM_RECOMMENDATION,
 )
 
 
@@ -35,7 +31,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="status",
         icon="mdi:power-plug",
         device_class=SensorDeviceClass.ENUM,
-        options=STATUS_OPTIONS,
+        options=ENUM_STATUS,
     ),
     ZendureSensorEntityDescription(
         key="ai_status",
@@ -43,7 +39,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="ai_status",
         icon="mdi:robot",
         device_class=SensorDeviceClass.ENUM,
-        options=AI_STATUS_OPTIONS,
+        options=ENUM_AI_STATUS,
     ),
     ZendureSensorEntityDescription(
         key="recommendation",
@@ -51,7 +47,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="recommendation",
         icon="mdi:lightbulb-outline",
         device_class=SensorDeviceClass.ENUM,
-        options=RECOMMENDATION_OPTIONS,
+        options=ENUM_RECOMMENDATION,
     ),
     ZendureSensorEntityDescription(
         key="ai_debug",
@@ -73,12 +69,26 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:currency-eur",
         native_unit_of_measurement="€/kWh",
     ),
+    ZendureSensorEntityDescription(
+        key="avg_charge_price",
+        translation_key="avg_charge_price",
+        runtime_key="avg_charge_price",
+        icon="mdi:scale-balance",
+        native_unit_of_measurement="€/kWh",
+    ),
+    ZendureSensorEntityDescription(
+        key="total_profit",
+        translation_key="total_profit",
+        runtime_key="total_profit",
+        icon="mdi:cash-plus",
+        native_unit_of_measurement="€",
+    ),
 )
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities([ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS])
+    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
 
 
 class ZendureSmartFlowSensor(SensorEntity):
@@ -105,20 +115,25 @@ class ZendureSmartFlowSensor(SensorEntity):
     @property
     def native_value(self):
         data = self.coordinator.data or {}
+        details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        if self.entity_description.key == "house_load":
-            return (data.get("details") or {}).get("load")
-
-        if self.entity_description.key == "price_now":
-            return (data.get("details") or {}).get("price_now")
+        if key == "house_load":
+            return details.get("load")
+        if key == "price_now":
+            return details.get("price_now")
+        if key == "avg_charge_price":
+            return details.get("avg_charge_price")
+        if key == "total_profit":
+            return details.get("total_profit_eur")
 
         return data.get(key)
 
     @property
     def extra_state_attributes(self):
         data = self.coordinator.data or {}
-        if self.entity_description.key in ("status", "ai_status", "recommendation", "ai_debug"):
+        # For transparency: attach details to key sensors
+        if self.entity_description.key in ("ai_debug", "ai_status", "recommendation", "status"):
             return data.get("details")
         return None
 
