@@ -3,14 +3,15 @@
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI",
-        "description": "Sélectionnez les entités disponibles dans votre système. L’intégration crée ses propres contrôles et logiques sans helpers.",
+        "description": "Sélectionnez les capteurs utilisés pour le contrôle intelligent. L’intégration calcule elle-même la consommation, le surplus PV et les recommandations.",
         "data": {
-          "soc_entity": "État de charge de la batterie (%)",
-          "pv_entity": "Puissance PV (W)",
-          "price_export_entity": "Prix de l’électricité (optionnel)",
-          "ac_mode_entity": "Mode AC Zendure (entrée / sortie)",
-          "input_limit_entity": "Puissance d’entrée Zendure (W)",
-          "output_limit_entity": "Puissance de sortie Zendure (W)"
+          "soc_entity": "État de charge de la batterie (SoC) en %",
+          "pv_entity": "Puissance photovoltaïque (W)",
+          "grid_power_entity": "Puissance réseau (+import / −export)",
+          "price_entity": "Prix de l’électricité (€/kWh, optionnel)",
+          "ac_mode_entity": "Mode AC Zendure",
+          "input_limit_entity": "Puissance de charge Zendure (W)",
+          "output_limit_entity": "Puissance de décharge Zendure (W)"
         }
       }
     }
@@ -19,37 +20,36 @@
   "entity": {
     "sensor": {
       "status": {
-        "name": "Statut"
+        "name": "État du système",
+        "state": {
+          "init": "Initialisation",
+          "ok": "Actif",
+          "error": "Erreur"
+        }
       },
       "ai_status": {
-        "name": "Statut IA"
+        "name": "Statut IA",
+        "state": {
+          "standby": "En attente",
+          "pv_surplus": "Surplus photovoltaïque détecté",
+          "cover_deficit": "Compensation de la consommation réseau",
+          "charging": "Batterie en charge",
+          "discharging": "Batterie en décharge"
+        }
       },
-      "ai_debug": {
-        "name": "Debug IA"
+      "recommendation": {
+        "name": "Recommandation IA",
+        "state": {
+          "standby": "Aucune action recommandée",
+          "charge": "Charge recommandée",
+          "discharge": "Décharge recommandée"
+        }
       },
       "house_load": {
-        "name": "Consommation du foyer"
-      }
-    },
-
-    "number": {
-      "soc_min": {
-        "name": "SoC minimum (%)"
+        "name": "Consommation du logement"
       },
-      "soc_max": {
-        "name": "SoC maximum (%)"
-      },
-      "max_charge": {
-        "name": "Puissance de charge max (W)"
-      },
-      "max_discharge": {
-        "name": "Puissance de décharge max (W)"
-      },
-      "price_threshold": {
-        "name": "Seuil prix élevé (€/kWh)"
-      },
-      "very_expensive_threshold": {
-        "name": "Seuil prix très élevé (€/kWh)"
+      "price_now": {
+        "name": "Prix actuel de l’électricité"
       }
     },
 
@@ -58,8 +58,8 @@
         "name": "Zendure SmartFlow AI – Mode de fonctionnement",
         "options": {
           "automatic": "Automatique",
-          "summer": "Été",
-          "winter": "Hiver",
+          "summer": "Mode été",
+          "winter": "Mode hiver",
           "manual": "Manuel"
         }
       },
@@ -67,23 +67,10 @@
         "name": "Zendure SmartFlow AI – Action manuelle",
         "options": {
           "standby": "Veille",
-          "charge": "Charge",
-          "discharge": "Décharge"
+          "charge": "Charger",
+          "discharge": "Décharger"
         }
       }
-    }
-  },
-
-  "state": {
-    "zendure_smartflow_ai__ai_status": {
-      "init": "Initialisation",
-      "idle": "Inactif",
-      "charge_surplus": "Charge avec surplus PV",
-      "cover_deficit": "Décharge pour couvrir la consommation",
-      "price_expensive": "Prix de l’électricité élevé",
-      "price_very_expensive": "Prix de l’électricité très élevé",
-      "manual_override": "Commande manuelle active",
-      "waiting_for_price_window": "En attente d’une meilleure fenêtre tarifaire"
     }
   }
 }
