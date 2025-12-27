@@ -5,12 +5,17 @@ from typing import Any
 
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import selector, entity_registry as er
+from homeassistant.helpers import selector
 
 from .const import (
     DOMAIN,
     CONF_SOC_ENTITY,
     CONF_PV_ENTITY,
+    CONF_PRICE_EXPORT_ENTITY,
+    CONF_PRICE_NOW_ENTITY,
+    CONF_AC_MODE_ENTITY,
+    CONF_INPUT_LIMIT_ENTITY,
+    CONF_OUTPUT_LIMIT_ENTITY,
     CONF_GRID_MODE,
     CONF_GRID_POWER_ENTITY,
     CONF_GRID_IMPORT_ENTITY,
@@ -18,30 +23,7 @@ from .const import (
     GRID_MODE_NONE,
     GRID_MODE_SINGLE,
     GRID_MODE_SPLIT,
-    CONF_PRICE_EXPORT_ENTITY,
-    CONF_PRICE_NOW_ENTITY,
-    CONF_AC_MODE_ENTITY,
-    CONF_INPUT_LIMIT_ENTITY,
-    CONF_OUTPUT_LIMIT_ENTITY,
 )
-
-
-def _find_first_entity(
-    hass: HomeAssistant,
-    domain: str,
-    device_class: str | None = None,
-    unit: str | None = None,
-):
-    reg = er.async_get(hass)
-    for ent in reg.entities.values():
-        if ent.domain != domain:
-            continue
-        if device_class and ent.device_class != device_class:
-            continue
-        if unit and ent.unit_of_measurement != unit:
-            continue
-        return ent.entity_id
-    return None
 
 
 class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -51,62 +33,35 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validierung Grid Split
             grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_NONE)
             if grid_mode == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
-                else:
-                    return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
-            else:
-                return self.async_create_entry(title="Zendure SmartFlow AI", data=user_input)
 
-        hass = self.hass
-
-        soc_guess = _find_first_entity(hass, "sensor", "battery", "%")
-        pv_guess = _find_first_entity(hass, "sensor", "power", "W")
-        grid_power_guess = _find_first_entity(hass, "sensor", "power", "W")
-        price_guess = _find_first_entity(hass, "sensor", None, "€/kWh")
+            if not errors:
+                return self.async_create_entry(
+                    title="Zendure SmartFlow AI",
+                    data=user_input,
+                )
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_SOC_ENTITY, default=soc_guess): selector.EntitySelector(
+                vol.Required(CONF_SOC_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                vol.Required(CONF_PV_ENTITY, default=pv_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-
-                # Grid (optional)
-                vol.Required(CONF_GRID_MODE, default=GRID_MODE_NONE): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=[
-                            {"value": GRID_MODE_NONE, "label": "Kein Netzsensor (ohne Hausverbrauchs-Berechnung)"},
-                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
-                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
-                        ],
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    )
-                ),
-                vol.Optional(CONF_GRID_POWER_ENTITY, default=grid_power_guess): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_IMPORT_ENTITY): selector.EntitySelector(
-                    selector.EntitySelectorConfig(domain="sensor")
-                ),
-                vol.Optional(CONF_GRID_EXPORT_ENTITY): selector.EntitySelector(
+                vol.Required(CONF_PV_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Preis (optional)
+                # Optional prices
                 vol.Optional(CONF_PRICE_EXPORT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
-                vol.Optional(CONF_PRICE_NOW_ENTITY, default=price_guess): selector.EntitySelector(
+                vol.Optional(CONF_PRICE_NOW_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="sensor")
                 ),
 
-                # Zendure Steuerung
+                # Zendure control entities
                 vol.Required(CONF_AC_MODE_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="select")
                 ),
@@ -115,6 +70,27 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
                 vol.Required(CONF_OUTPUT_LIMIT_ENTITY): selector.EntitySelector(
                     selector.EntitySelectorConfig(domain="number")
+                ),
+
+                # Grid setup (recommended)
+                vol.Optional(CONF_GRID_MODE, default=GRID_MODE_NONE): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": GRID_MODE_NONE, "label": "Kein Netzsensor (Hausverbrauch nicht berechenbar)"},
+                            {"value": GRID_MODE_SINGLE, "label": "Ein Sensor (+ Bezug / – Einspeisung)"},
+                            {"value": GRID_MODE_SPLIT, "label": "Zwei Sensoren (Bezug und Einspeisung getrennt)"},
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Optional(CONF_GRID_POWER_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_GRID_IMPORT_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
+                ),
+                vol.Optional(CONF_GRID_EXPORT_ENTITY): selector.EntitySelector(
+                    selector.EntitySelectorConfig(domain="sensor")
                 ),
             }
         )
