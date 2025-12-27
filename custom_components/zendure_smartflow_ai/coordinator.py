@@ -13,6 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     # config keys
+    DOMAIN,
     CONF_SOC_ENTITY,
     CONF_PV_ENTITY,
     CONF_PRICE_NOW_ENTITY,
