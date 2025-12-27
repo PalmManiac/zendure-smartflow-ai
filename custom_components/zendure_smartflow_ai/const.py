@@ -3,15 +3,18 @@ from __future__ import annotations
 from homeassistant.const import Platform
 
 # ==================================================
-# Domain / Meta
+# Domain / Integration info
 # ==================================================
 DOMAIN = "zendure_smartflow_ai"
 
 INTEGRATION_NAME = "Zendure SmartFlow AI"
-INTEGRATION_MANUFACTURER = "TK-Multimedia"
+INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "SmartFlow AI"
-INTEGRATION_VERSION = "0.11.1"
+INTEGRATION_VERSION = "0.12.0"
 
+# ==================================================
+# Platforms
+# ==================================================
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.NUMBER,
@@ -21,40 +24,58 @@ PLATFORMS: list[Platform] = [
 # ==================================================
 # Update
 # ==================================================
-UPDATE_INTERVAL = 10  # Sekunden
+UPDATE_INTERVAL = 10  # seconds
 
 # ==================================================
-# Config Flow – Entity Auswahl
+# Config Flow – entity selection
 # ==================================================
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
 
-# Grid ist optional, aber empfohlen (für Load-Berechnung)
+CONF_PRICE_EXPORT_ENTITY = "price_export_entity"   # optional (Tibber data export -> attributes.data list)
+CONF_PRICE_NOW_ENTITY = "price_now_entity"         # optional direct €/kWh sensor
+
+CONF_AC_MODE_ENTITY = "ac_mode_entity"
+CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
+CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
+
+# Grid setup (recommended, used to compute house load)
 CONF_GRID_MODE = "grid_mode"
-CONF_GRID_POWER_ENTITY = "grid_power_entity"     # signed (+import / -export)
-CONF_GRID_IMPORT_ENTITY = "grid_import_entity"   # import only
-CONF_GRID_EXPORT_ENTITY = "grid_export_entity"   # export only
+CONF_GRID_POWER_ENTITY = "grid_power_entity"   # single sensor (+import / -export)
+CONF_GRID_IMPORT_ENTITY = "grid_import_entity" # split import
+CONF_GRID_EXPORT_ENTITY = "grid_export_entity" # split export
 
-# Preis ist optional
-CONF_PRICE_EXPORT_ENTITY = "price_export_entity"  # Tibber Datenexport (attributes.data)
-CONF_PRICE_NOW_ENTITY = "price_now_entity"        # optionaler Sensor mit €/kWh als state
-
-# Zendure Steuer-Entitäten (SolarFlow AC)
-CONF_AC_MODE_ENTITY = "ac_mode_entity"            # select input/output
-CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"    # number W
-CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"  # number W
-
-# ==================================================
-# Grid Modes
-# ==================================================
 GRID_MODE_NONE = "none"
 GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
 
-GRID_MODES = [GRID_MODE_NONE, GRID_MODE_SINGLE, GRID_MODE_SPLIT]
+# ==================================================
+# Runtime selects
+# ==================================================
+AI_MODE_AUTOMATIC = "automatic"
+AI_MODE_SUMMER = "summer"
+AI_MODE_WINTER = "winter"
+AI_MODE_MANUAL = "manual"
+
+AI_MODES: list[str] = [
+    AI_MODE_AUTOMATIC,
+    AI_MODE_SUMMER,
+    AI_MODE_WINTER,
+    AI_MODE_MANUAL,
+]
+
+MANUAL_STANDBY = "standby"
+MANUAL_CHARGE = "charge"
+MANUAL_DISCHARGE = "discharge"
+
+MANUAL_ACTIONS: list[str] = [
+    MANUAL_STANDBY,
+    MANUAL_CHARGE,
+    MANUAL_DISCHARGE,
+]
 
 # ==================================================
-# Integration Settings (Number Entities Keys)
+# Number entities (settings)
 # ==================================================
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
@@ -63,45 +84,57 @@ SETTING_MAX_DISCHARGE = "max_discharge"
 SETTING_PRICE_THRESHOLD = "price_threshold"
 SETTING_VERY_EXPENSIVE_THRESHOLD = "very_expensive_threshold"
 
-# ==================================================
-# Defaults
-# ==================================================
 DEFAULT_SOC_MIN = 12.0
-DEFAULT_SOC_MAX = 100.0  # Herstellerempfehlung
+DEFAULT_SOC_MAX = 100.0  # Herstellerempfehlung (SoC max default 100%)
 DEFAULT_MAX_CHARGE = 2000.0
 DEFAULT_MAX_DISCHARGE = 700.0
-
 DEFAULT_PRICE_THRESHOLD = 0.35
 DEFAULT_VERY_EXPENSIVE_THRESHOLD = 0.49
 
-# Backwards compatibility alias (falls irgendwo noch alter Name verwendet wird)
+# Backward compatibility aliases (falls irgendwo noch alte Namen importiert werden)
 DEFAULT_EXPENSIVE_THRESHOLD = DEFAULT_PRICE_THRESHOLD
+VERY_EXPENSIVE_THRESHOLD = DEFAULT_VERY_EXPENSIVE_THRESHOLD
 
 # ==================================================
-# Status / Debug
+# Status / AI enums (for enum sensors)
 # ==================================================
 STATUS_INIT = "init"
-STATUS_READY = "ready"
+STATUS_OK = "ok"
+STATUS_SENSOR_INVALID = "sensor_invalid"
+STATUS_PRICE_INVALID = "price_invalid"
 STATUS_ERROR = "error"
 
-DEBUG_OK = "OK"
-DEBUG_SENSOR_INVALID = "SENSOR_INVALID"
-DEBUG_PRICE_INVALID = "PRICE_INVALID"
+STATUS_OPTIONS = [
+    STATUS_INIT,
+    STATUS_OK,
+    STATUS_SENSOR_INVALID,
+    STATUS_PRICE_INVALID,
+    STATUS_ERROR,
+]
 
-# ==================================================
-# AI Modes / Manual Actions (interne Werte bleiben EN)
-# ==================================================
-AI_MODE_AUTOMATIC = "automatic"
-AI_MODE_SUMMER = "summer"
-AI_MODE_WINTER = "winter"
-AI_MODE_MANUAL = "manual"
-AI_MODES = [AI_MODE_AUTOMATIC, AI_MODE_SUMMER, AI_MODE_WINTER, AI_MODE_MANUAL]
+# AI status values (short, stable identifiers)
+AI_STATUS_STANDBY = "standby"
+AI_STATUS_PV_CHARGE = "pv_charge"
+AI_STATUS_COVER_DEFICIT = "cover_deficit"
+AI_STATUS_PRICE_PEAK = "price_peak"
+AI_STATUS_MANUAL_ACTIVE = "manual_active"
+AI_STATUS_WAITING = "waiting"
 
-MANUAL_STANDBY = "standby"
-MANUAL_CHARGE = "charge"
-MANUAL_DISCHARGE = "discharge"
-MANUAL_ACTIONS = [MANUAL_STANDBY, MANUAL_CHARGE, MANUAL_DISCHARGE]
+AI_STATUS_OPTIONS = [
+    AI_STATUS_STANDBY,
+    AI_STATUS_PV_CHARGE,
+    AI_STATUS_COVER_DEFICIT,
+    AI_STATUS_PRICE_PEAK,
+    AI_STATUS_MANUAL_ACTIVE,
+    AI_STATUS_WAITING,
+]
 
-# Zendure AC Mode Optionen (aus Zendure Select)
-ZENDURE_MODE_INPUT = "input"
-ZENDURE_MODE_OUTPUT = "output"
+RECOMMENDATION_STANDBY = "standby"
+RECOMMENDATION_CHARGE = "charge"
+RECOMMENDATION_DISCHARGE = "discharge"
+
+RECOMMENDATION_OPTIONS = [
+    RECOMMENDATION_STANDBY,
+    RECOMMENDATION_CHARGE,
+    RECOMMENDATION_DISCHARGE,
+]
