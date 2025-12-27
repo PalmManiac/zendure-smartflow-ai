@@ -25,21 +25,18 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
-        state_translation_key="status",
         runtime_key="status",
         icon="mdi:power-plug",
     ),
     ZendureSensorEntityDescription(
         key="ai_status",
         translation_key="ai_status",
-        state_translation_key="ai_status",
         runtime_key="ai_status",
         icon="mdi:robot",
     ),
     ZendureSensorEntityDescription(
         key="recommendation",
         translation_key="recommendation",
-        state_translation_key="recommendation",
         runtime_key="recommendation",
         icon="mdi:lightbulb-outline",
     ),
