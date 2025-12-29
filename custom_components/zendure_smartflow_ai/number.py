@@ -24,11 +24,11 @@ class ZendureNumberEntityDescription(NumberEntityDescription):
     step: float
 
 
-# ==========================
-# Reihenfolge = UI-Reihenfolge
-# ==========================
+# ==================================================
+# UI-Reihenfolge (so wie von dir gewünscht)
+# ==================================================
 NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
-    # 3. SoC Minimum
+    # SoC Minimum
     ZendureNumberEntityDescription(
         key="soc_min",
         translation_key="soc_min",
@@ -40,7 +40,7 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:battery-alert",
     ),
 
-    # 4. SoC Maximum
+    # SoC Maximum
     ZendureNumberEntityDescription(
         key="soc_max",
         translation_key="soc_max",
@@ -52,11 +52,11 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:battery-check",
     ),
 
-    # 5. Max. Ladeleistung
+    # Max. Ladeleistung
     ZendureNumberEntityDescription(
-        key="max_charge_power",
+        key="max_charge",
         translation_key="max_charge_power",
-        runtime_key="max_charge_power",
+        runtime_key="max_charge",
         min_value=0,
         max_value=2400,
         step=50,
@@ -64,11 +64,11 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:battery-arrow-up",
     ),
 
-    # 6. Max. Entladeleistung
+    # Max. Entladeleistung
     ZendureNumberEntityDescription(
-        key="max_discharge_power",
+        key="max_discharge",
         translation_key="max_discharge_power",
-        runtime_key="max_discharge_power",
+        runtime_key="max_discharge",
         min_value=0,
         max_value=2400,
         step=50,
@@ -76,11 +76,11 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:battery-arrow-down",
     ),
 
-    # 7. Notladeleistung
+    # Notladeleistung
     ZendureNumberEntityDescription(
-        key="emergency_charge_power",
+        key="emergency_charge_w",
         translation_key="emergency_charge_power",
-        runtime_key="emergency_charge_power",
+        runtime_key="emergency_charge_w",
         min_value=0,
         max_value=2400,
         step=50,
@@ -88,7 +88,7 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:flash-alert",
     ),
 
-    # 8. Notladung ab SoC
+    # Notladung ab SoC
     ZendureNumberEntityDescription(
         key="emergency_soc",
         translation_key="emergency_soc",
@@ -100,7 +100,7 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:alert-circle",
     ),
 
-    # 9. Sehr-Teuer-Schwelle
+    # Sehr teuer Schwelle
     ZendureNumberEntityDescription(
         key="very_expensive_threshold",
         translation_key="very_expensive_threshold",
@@ -120,6 +120,7 @@ async def async_setup_entry(
     add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
+
     add_entities(
         ZendureSmartFlowNumber(entry, coordinator, description)
         for description in NUMBERS
@@ -148,6 +149,7 @@ class ZendureSmartFlowNumber(NumberEntity):
             "sw_version": INTEGRATION_VERSION,
         }
 
+        # Initialwert sicherstellen
         if description.runtime_key not in coordinator.runtime_settings:
             coordinator.runtime_settings[description.runtime_key] = description.min_value
 
@@ -155,21 +157,26 @@ class ZendureSmartFlowNumber(NumberEntity):
     def available(self) -> bool:
         return self.coordinator.last_update_success
 
-    async def async_set_native_value(self, value: float) -> None:
-    self.coordinator.runtime_settings[self.entity_description.runtime_key] = value
-
-    await self.hass.config_entries.async_update_entry(
-        self._entry,
-        options={
-            **self._entry.options,
-            self.entity_description.runtime_key: value,
-        },
-    )
-
-    self.async_write_ha_state()
+    @property
+    def native_value(self) -> float:
+        return self.coordinator.runtime_settings.get(
+            self.entity_description.runtime_key,
+            self.entity_description.min_value,
+        )
 
     async def async_set_native_value(self, value: float) -> None:
+        # Runtime setzen
         self.coordinator.runtime_settings[self.entity_description.runtime_key] = value
+
+        # Persistenz
+        await self.hass.config_entries.async_update_entry(
+            self._entry,
+            options={
+                **self._entry.options,
+                self.entity_description.runtime_key: value,
+            },
+        )
+
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
