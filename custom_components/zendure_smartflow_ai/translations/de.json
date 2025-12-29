@@ -32,30 +32,14 @@
     },
 
     "number": {
-      "soc_min": {
-        "name": "SoC Minimum"
-      },
-      "soc_max": {
-        "name": "SoC Maximum"
-      },
-      "max_charge": {
-        "name": "Max. Ladeleistung"
-      },
-      "max_discharge": {
-        "name": "Max. Entladeleistung"
-      },
-      "emergency_charge": {
-        "name": "Notladeleistung"
-      },
-      "emergency_soc": {
-        "name": "Notladung ab SoC"
-      },
-      "very_expensive_threshold": {
-        "name": "Sehr-Teuer-Schwelle"
-      },
-      "profit_margin_pct": {
-        "name": "Gewinnmarge"
-      }
+      "soc_min": { "name": "SoC Minimum" },
+      "soc_max": { "name": "SoC Maximum" },
+      "max_charge": { "name": "Max. Ladeleistung" },
+      "max_discharge": { "name": "Max. Entladeleistung" },
+      "emergency_charge": { "name": "Notladeleistung" },
+      "emergency_soc": { "name": "Notladung ab SoC" },
+      "very_expensive_threshold": { "name": "Sehr-Teuer-Schwelle" },
+      "profit_margin_pct": { "name": "Gewinnmarge" }
     },
 
     "sensor": {
@@ -89,27 +73,12 @@
           "emergency": "Notladen"
         }
       },
-      "ai_debug": {
-        "name": "KI-Debug"
-      },
-      "house_load": {
-        "name": "Hauslast"
-      },
-      "price_now": {
-        "name": "Aktueller Strompreis"
-      }
-    }
-  }
-}
-{
-  "entity": {
-    "sensor": {
-      "avg_charge_price": {
-        "name": "Ø Ladepreis Akku"
-      },
-      "profit_eur": {
-        "name": "Gewinn / Ersparnis (gesamt)"
-      }
+      "ai_debug": { "name": "KI-Debug" },
+      "house_load": { "name": "Hauslast" },
+      "price_now": { "name": "Aktueller Strompreis" },
+
+      "avg_charge_price": { "name": "Ø Ladepreis Akku" },
+      "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
     }
   }
 }
