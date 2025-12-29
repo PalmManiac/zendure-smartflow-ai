@@ -1,33 +1,20 @@
 {
+  "title": "Zendure SmartFlow AI",
+
   "config": {
-    "error": {
-      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
-    },
     "step": {
       "user": {
-        "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren/Entitäten aus. Der Hausverbrauch wird intern berechnet (kein Helper nötig). Preise sind optional.",
-        "data": {
-          "soc_entity": "Akkustand (SoC) in %",
-          "pv_entity": "PV-Leistung (W)",
-          "price_export_entity": "Strompreis-Export (optional, z.B. Tibber Datenexport)",
-          "price_now_entity": "Aktueller Preis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select: input/output)",
-          "input_limit_entity": "Zendure Input-Limit (Number, W)",
-          "output_limit_entity": "Zendure Output-Limit (Number, W)",
-          "grid_mode": "Netzsensor-Setup (empfohlen)",
-          "grid_power_entity": "Netzleistung (+Bezug / –Einspeisung)",
-          "grid_import_entity": "Bezug (W) (bei zwei Sensoren)",
-          "grid_export_entity": "Einspeisung (W) (bei zwei Sensoren)"
-        }
+        "title": "Zendure SmartFlow AI einrichten",
+        "description": "Verknüpfe deine Zendure- und Energiesensoren für eine intelligente Steuerung."
       }
     }
   },
+
   "entity": {
     "select": {
       "ai_mode": {
         "name": "Betriebsmodus",
-        "options": {
+        "state": {
           "automatic": "Automatik",
           "summer": "Sommer",
           "winter": "Winter",
@@ -36,60 +23,81 @@
       },
       "manual_action": {
         "name": "Manuelle Aktion",
-        "options": {
+        "state": {
           "standby": "Standby",
           "charge": "Laden",
           "discharge": "Entladen"
         }
       }
     },
+
     "number": {
-      "soc_min": { "name": "SoC Minimum (%)" },
-      "soc_max": { "name": "SoC Maximum (%)" },
-      "max_charge": { "name": "Max. Ladeleistung (W)" },
-      "max_discharge": { "name": "Max. Entladeleistung (W)" },
-      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
-      "very_expensive_threshold": { "name": "Sehr teuer-Schwelle (€/kWh)" },
-      "emergency_soc": { "name": "Notladung ab SoC (%)" },
-      "emergency_charge_w": { "name": "Notladeleistung (W)" },
-      "profit_margin_pct": { "name": "Gewinnmarge für Entladung (%)" }
+      "soc_min": {
+        "name": "SoC Minimum"
+      },
+      "soc_max": {
+        "name": "SoC Maximum"
+      },
+      "max_charge_power": {
+        "name": "Max. Ladeleistung"
+      },
+      "max_discharge_power": {
+        "name": "Max. Entladeleistung"
+      },
+      "emergency_charge_power": {
+        "name": "Notladeleistung"
+      },
+      "emergency_soc": {
+        "name": "Notladung ab SoC"
+      },
+      "very_expensive_threshold": {
+        "name": "Sehr-Teuer-Schwelle"
+      },
+      "profit_margin_pct": {
+        "name": "Gewinnmarge"
+      }
     },
+
     "sensor": {
       "status": {
-        "name": "Status",
+        "name": "Systemstatus",
         "state": {
           "init": "Initialisierung",
           "ok": "OK",
-          "sensor_invalid": "Sensor ungültig",
-          "price_invalid": "Preis ungültig"
+          "sensor_invalid": "Sensordaten ungültig",
+          "price_invalid": "Preisdaten ungültig"
         }
       },
       "ai_status": {
         "name": "KI-Status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "PV-Überschuss laden",
+          "charge_surplus": "Laden (PV-Überschuss)",
           "cover_deficit": "Bezug ausgleichen",
-          "expensive_discharge": "Teuer – Entladen",
-          "very_expensive_force": "Sehr teuer – Entladung erzwingen",
-          "emergency_charge": "Notladung aktiv",
+          "expensive_discharge": "Entladen (teuer)",
+          "very_expensive_force": "Entladen (sehr teuer)",
+          "emergency_charge": "Notladung",
           "manual": "Manueller Modus"
         }
       },
       "recommendation": {
-        "name": "Steuerungsempfehlung",
+        "name": "KI-Empfehlung",
         "state": {
-          "standby": "Standby",
+          "standby": "Keine Aktion",
           "charge": "Laden",
           "discharge": "Entladen",
-          "emergency_charge": "Notladung"
+          "emergency": "Notladen"
         }
       },
-      "ai_debug": { "name": "KI-Debug" },
-      "house_load": { "name": "Hausverbrauch (berechnet)" },
-      "price_now": { "name": "Aktueller Preis" },
-      "avg_charge_price": { "name": "Ø Ladepreis Akku" },
-      "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
+      "ai_debug": {
+        "name": "KI-Debug"
+      },
+      "house_load": {
+        "name": "Hauslast"
+      },
+      "price_now": {
+        "name": "Aktueller Strompreis"
+      }
     }
   }
 }
