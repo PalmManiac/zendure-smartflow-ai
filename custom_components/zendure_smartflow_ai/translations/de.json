@@ -38,13 +38,13 @@
       "soc_max": {
         "name": "SoC Maximum"
       },
-      "max_charge_power": {
+      "max_charge": {
         "name": "Max. Ladeleistung"
       },
-      "max_discharge_power": {
+      "max_discharge": {
         "name": "Max. Entladeleistung"
       },
-      "emergency_charge_power": {
+      "emergency_charge": {
         "name": "Notladeleistung"
       },
       "emergency_soc": {
