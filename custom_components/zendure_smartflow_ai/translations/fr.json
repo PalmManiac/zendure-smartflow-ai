@@ -38,13 +38,13 @@
       "soc_max": {
         "name": "SoC maximum"
       },
-      "max_charge_power": {
+      "max_charge": {
         "name": "Puissance de charge maximale"
       },
-      "max_discharge_power": {
+      "max_discharge": {
         "name": "Puissance de décharge maximale"
       },
-      "emergency_charge_power": {
+      "emergency_charge": {
         "name": "Puissance de charge d’urgence"
       },
       "emergency_soc": {
