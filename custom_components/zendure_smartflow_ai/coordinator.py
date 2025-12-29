@@ -177,6 +177,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
             "runtime_mode": dict(self.runtime_mode),
+            "emergency_active": False,
             "avg_charge_price": None,     # €/kWh
             "charged_kwh": 0.0,
             "discharged_kwh": 0.0,
