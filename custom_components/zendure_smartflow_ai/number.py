@@ -86,6 +86,16 @@ NUMBERS: tuple[ZendureNumberEntityDescription, ...] = (
         icon="mdi:alert-circle",
     ),
     ZendureNumberEntityDescription(
+        key="profit_margin_pct",
+        translation_key="profit_margin_pct",
+        runtime_key="profit_margin_pct",
+        min_value=0,
+        max_value=1000,
+        step=1,
+        unit_of_measurement="%",
+        icon="mdi:chart-line",
+    ),
+    ZendureNumberEntityDescription(
         key="very_expensive_threshold",
         translation_key="very_expensive_threshold",
         runtime_key="very_expensive_threshold",
