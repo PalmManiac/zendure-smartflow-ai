@@ -27,7 +27,11 @@ class ZendureSelectEntityDescription(SelectEntityDescription):
     default_option: str
 
 
+# ==========================
+# Reihenfolge = UI-Reihenfolge
+# ==========================
 SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
+    # 1. Betriebsmodus
     ZendureSelectEntityDescription(
         key="ai_mode",
         translation_key="ai_mode",
@@ -36,6 +40,8 @@ SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
         default_option=AI_MODE_AUTOMATIC,
         icon="mdi:robot",
     ),
+
+    # 2. Manuelle Aktion
     ZendureSelectEntityDescription(
         key="manual_action",
         translation_key="manual_action",
@@ -47,15 +53,27 @@ SELECTS: tuple[ZendureSelectEntityDescription, ...] = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities([ZendureSmartFlowSelect(entry, coordinator, d) for d in SELECTS])
+    add_entities(
+        ZendureSmartFlowSelect(entry, coordinator, description)
+        for description in SELECTS
+    )
 
 
 class ZendureSmartFlowSelect(SelectEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSelectEntityDescription) -> None:
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator,
+        description: ZendureSelectEntityDescription,
+    ) -> None:
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
@@ -89,4 +107,6 @@ class ZendureSmartFlowSelect(SelectEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
