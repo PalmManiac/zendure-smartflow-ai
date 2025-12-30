@@ -1,281 +1,384 @@
 # Zendure SmartFlow AI
 
-🇩🇪 **Deutsche Anleitung**  
-🇬🇧 **English documentation below**
+**Intelligente, preis- und PV-basierte Steuerung für Zendure SolarFlow Systeme in Home Assistant**
 
 ---
 
-## 🔋 Zendure SmartFlow AI – Intelligente Akku-Steuerung für Home Assistant
+## 🇩🇪 Deutsch
 
-**Zendure SmartFlow AI** ist eine vollständig lokal laufende Home-Assistant-Integration zur **intelligenten Steuerung von Zendure SolarFlow-Akkus**.
+### Überblick
 
-Sie kombiniert:
-- PV-Erzeugung
-- Hausverbrauch
-- Strompreise
-- Benutzer-Limits
+**Zendure SmartFlow AI** ist eine Home-Assistant-Integration zur intelligenten Steuerung von Zendure-SolarFlow-Systemen.  
+Sie kombiniert **PV-Erzeugung**, **Hausverbrauch**, **Batterie-SoC** und **optionale Strompreise**, um Lade- und Entladeentscheidungen automatisch und sicher zu treffen.
 
-zu einer **automatischen, sicheren und wirtschaftlichen Lade- & Entladestrategie**.
-
-👉 Kein Cloud-Zwang  
-👉 Keine starren Automationen  
-👉 Volle Transparenz & Kontrolle
+Ziel ist **nicht** maximale Aktivität, sondern **optimales Verhalten**:
+- Laden, wenn es sinnvoll ist
+- Entladen, wenn es wirtschaftlich ist
+- Stillstand, wenn nichts gewonnen wird
 
 ---
 
-## ✨ Hauptfunktionen
+## Warum diese Integration?
 
-- 🤖 **KI-basierte Lade- & Entladeentscheidung**
-- ☀️ **PV-Überschussladen**
-- ⚡ **Preisabhängige Entladung**
-- 🚨 **Notladefunktion bis SoC-Minimum**
-- 🏖️ Sommer- / ❄️ Winter- / ⚙️ Automatik-Modus
-- 🕹️ Manueller Modus (Laden / Entladen / Standby)
-- 📊 **Ø Ladepreis-Berechnung**
-- 💰 **Gewinn- / Ersparnis-Analyse**
-- 🏠 Unterstützung für **Single- & Split-Grid-Messung**
-- 🔒 **100 % lokal**, keine externen Dienste
+Viele bestehende Lösungen arbeiten mit:
+- starren Zeitplänen
+- festen Preisgrenzen
+- simplen Wenn-Dann-Regeln
+
+**Zendure SmartFlow AI** verfolgt einen anderen Ansatz:
+
+> **Kontext statt Regeln.**
+
+Die Entscheidung basiert immer auf der aktuellen Gesamtsituation:
+- Wie viel PV-Leistung steht zur Verfügung?
+- Wie hoch ist die Hauslast?
+- Wie voll ist der Akku?
+- Ist Strom gerade teuer – oder sogar sehr teuer?
 
 ---
 
-## 🧰 Voraussetzungen
+## Grundprinzip (die „KI“)
 
-- Home Assistant **2024.6 oder neuer**
-- Zendure SolarFlow (AC-gekoppelt)
-- Folgende Sensoren:
-  - Akku-SoC (%)
-  - PV-Leistung (W)
-  - Netzleistung (Single oder Split)
+Die Integration bewertet zyklisch:
+
+- **PV-Leistung**
+- **Hausverbrauch**
+- **Netzbezug / Einspeisung**
+- **Batterie-SoC**
+- **aktueller Strompreis (optional)**
+
+Daraus ergeben sich drei mögliche Aktionen:
+- 🔌 **Laden**
+- 🔋 **Entladen**
+- ⏸️ **Nichts tun**
+
+Die KI ist bewusst **konservativ**:
+- Kein unnötiges Entladen
+- Kein sinnloses Laden
+- Sicherheit geht immer vor Optimierung
+
+---
+
+## Betriebsmodi
+
+### 🔹 Automatik (empfohlen)
+Der Standardmodus.
+
+- Lädt bei PV-Überschuss
+- Entlädt bei teurem Strom
+- Kombiniert Sommer- und Winterlogik
+- Optimal für 95 % aller Nutzer
+
+---
+
+### 🔹 Sommer
+PV-zentriert.
+
+- Fokus auf Eigenverbrauch
+- Entladung **nur bei sehr teurem Strom**
+- Ideal bei hoher PV-Leistung
+
+---
+
+### 🔹 Winter
+Preisorientiert.
+
+- Aktive Nutzung des Akkus zur Kostenreduktion
+- Entlädt bereits bei „teurem“ Strom
+- Geeignet bei geringer oder keiner PV-Erzeugung
+
+---
+
+### 🔹 Manuell
+Volle Kontrolle durch den Nutzer.
+
+- KI greift nicht ein
+- Laden / Entladen / Standby per Auswahl
+- Ideal für Tests oder Sonderfälle
+
+---
+
+## Sicherheitsmechanismen (sehr wichtig)
+
+Die Integration enthält mehrere Schutzebenen:
+
+### SoC Minimum
+- Unterhalb dieses Wertes wird **nicht entladen**
+- Schützt die Batterie langfristig
+
+### SoC Maximum
+- Oberhalb dieses Wertes wird **nicht weiter geladen**
+
+### Notladung
+- Aktiviert bei kritischem Akkustand
+- Übersteuert alle anderen Logiken
+
+---
+
+## Notladefunktion – im Detail
+
+Die Notladung arbeitet mit **zwei Schwellen**:
+
+### 1️⃣ „Notladung ab SoC“
+- Ab diesem Wert wird die Notladung **aktiviert**
+- Beispiel: 8 %
+
+### 2️⃣ SoC Minimum
+- Zielwert der Notladung
+- Beispiel: 12 %
+
+👉 Ergebnis:
+- Der Akku wird **bis zum SoC Minimum geladen**
+- Danach wird die Notladung automatisch beendet
+- Die normale KI übernimmt wieder
+
+**Warum so?**
+- Verhindert Tiefentladung
+- Stellt einen sicheren Betriebszustand wieder her
+- Kein „Hängenbleiben“ in der Notladung
+
+---
+
+## Entitäten in Home Assistant
+
+### Select-Entitäten
+- Betriebsmodus
+- Manuelle Aktion
+
+### Number-Entitäten
+- SoC Minimum
+- SoC Maximum
+- Maximale Ladeleistung
+- Maximale Entladeleistung
+- Notladeleistung
+- Notladung ab SoC
+- Sehr-Teuer-Schwelle
+- Gewinnmarge
+
+### Sensoren
+- Systemstatus
+- KI-Status
+- KI-Empfehlung
+- Hauslast
+- Aktueller Strompreis
+- Ø Ladepreis Akku
+- Gewinn / Ersparnis (gesamt)
+
+---
+
+## Typische Szenarien
+
+### ☀️ Viel PV, wenig Verbrauch
+→ Akku lädt mit Überschuss
+
+### 🌙 Abends, hoher Strompreis
+→ Akku entlädt zur Kostenvermeidung
+
+### ❄️ Winter ohne PV
+→ Akku wird preisabhängig genutzt
+
+### ⚠️ Akku fast leer
+→ Notladung greift automatisch
+
+---
+
+## Voraussetzungen
+
+- Home Assistant (aktuelle Version)
+- Zendure SolarFlow System
+- Sensoren für:
+  - Batterie-SoC
+  - PV-Leistung
 - Optional:
-  - Strompreis (z. B. Tibber, Awattar, o. ä.)
+  - Strompreis-Sensor (z. B. Tibber)
 
 ---
 
-## 📦 Installation
+## Installation
 
-### 🔹 Manuell (Custom Component)
-
-1. Repository herunterladen oder klonen
-2. Ordner kopieren nach: /config/custom_components/zendure_smartflow_ai/
+### Manuell
+1. Repository herunterladen
+2. Ordner `zendure_smartflow_ai` nach  
+   `/config/custom_components/` kopieren
 3. Home Assistant neu starten
-4. **Einstellungen → Geräte & Dienste → Integration hinzufügen**
-5. **Zendure SmartFlow AI** auswählen
+4. Integration hinzufügen
 
-> 🔜 HACS-Support folgt nach v1.0.0
-
----
-
-## ⚙️ Einrichtung
-
-Während der Einrichtung verknüpfst du:
-- Akku-SoC-Sensor
-- PV-Leistung
-- Netzsensoren (Single oder Import/Export)
-- Zendure-Steuerentitäten (AC-Modus, Lade- & Entlade-Limit)
-
-### Netz-Modi
-- **Single**: ein Sensor (+Import / −Export)
-- **Split**: getrennte Import- & Export-Sensoren
+### HACS
+> Wird mit Version 1.x offiziell unterstützt
 
 ---
 
-## 🎛️ Steuerelemente (Number & Select Entities)
+## Bekannte Einschränkungen
 
-### Betriebsmodi
-- **Automatik** – intelligenter Hybridbetrieb
-- **Sommer** – Fokus PV-Laden, Entladen nur bei sehr teuer
-- **Winter** – preisorientierte Entladung
-- **Manuell** – vollständige Kontrolle
+- Select-Status-Texte aktuell Englisch
+- Strompreis-Logik abhängig vom Sensorformat
 
-### Manuelle Aktion
-- Standby
-- Laden
-- Entladen
-
-### Grenzwerte & Limits
-- **SoC Minimum** – Untergrenze für Entladung
-- **SoC Maximum** – Obergrenze für Ladung
-- **Max. Ladeleistung**
-- **Max. Entladeleistung**
-- **Notladung ab SoC**
-- **Notladeleistung**
-- **Sehr-Teuer-Schwelle**
-- **Gewinnmarge (%)**
+Diese Punkte werden in zukünftigen Versionen verbessert.
 
 ---
 
-## 🚨 Notladefunktion (wichtig!)
+## Support & Mitwirkung
 
-Die Notladefunktion schützt den Akku vor kritischer Tiefentladung.
-
-**Funktionsweise:**
-- Aktivierung bei `SoC ≤ Notladung ab SoC`
-- Akku wird **zwangsweise geladen**
-- Ladevorgang endet **erst bei Erreichen des SoC-Minimums**
-- Danach automatische Rückkehr in den Normalbetrieb
-
-✔ Sicherheitspriorität  
-✔ Kein „Hängenbleiben“  
-✔ Keine Endlosschleifen
-
----
-
-## 🧠 KI-Logik (vereinfacht erklärt)
-
-**Prioritäten:**
-1. Sicherheit (Notladung)
-2. PV-Überschuss nutzen
-3. Wirtschaftlichkeit (Strompreis)
-4. Benutzer-Limits
-
-### Laden
-- PV-Überschuss → Akku
-- Günstiger Strom → optional
-
-### Entladen
-- Hoher Strompreis
-- Innerhalb der SoC-Grenzen
-- Abhängig vom Modus
-
----
-
-## 📊 Sensoren & Status
-
-- **Systemstatus** – OK / Sensorfehler / Preisfehler
-- **KI-Status** – aktueller Entscheidungszustand
-- **KI-Empfehlung** – Laden / Entladen / Standby
-- **Ø Ladepreis Akku**
-- **Gewinn / Ersparnis (gesamt)**
-
----
-
-## ❓ FAQ
-
-**Warum passiert gerade nichts?**  
-→ Kein PV-Überschuss, Preis nicht attraktiv oder SoC-Limits erreicht.
-
-**Was passiert ohne Strompreis?**  
-→ PV-Logik funktioniert weiterhin, Preislogik wird übersprungen.
-
-**Warum wird nicht entladen?**  
-→ Schutz durch SoC-Minimum oder Modus-Logik.
-
----
-
-## 🛣️ Roadmap
-
-- Weitere Optimierungen der Preislogik
-- Prognose-Einbindung
-- Dashboard-Beispiele
-- HACS-Integration (inkl. Logo)
-
----
-
-## 🤝 Mitwirken
-
-- Issues & Feature-Wünsche willkommen
-- Pull Requests gern gesehen
-- Ziel: **stabile, transparente & sichere Akku-Steuerung**
+- Bugs & Feature-Wünsche bitte über GitHub Issues
+- Pull Requests willkommen
+- Diese Integration ist ein Community-Projekt
 
 ---
 
 ---
 
-# Zendure SmartFlow AI (English)
+## 🇬🇧 English
 
-## 🔋 Intelligent Battery Control for Home Assistant
+### Overview
 
-**Zendure SmartFlow AI** is a fully local Home Assistant integration for **intelligent control of Zendure SolarFlow batteries**.
+**Zendure SmartFlow AI** is a Home Assistant integration for intelligent control of Zendure SolarFlow systems.  
+It combines **PV production**, **household load**, **battery SoC**, and **optional electricity prices** to make smart charging and discharging decisions.
 
-It combines:
-- PV production
-- Household consumption
-- Electricity prices
-- User-defined limits
-
-into a **safe, efficient and automated charging strategy**.
+The goal is **not maximum activity**, but **optimal behavior**:
+- Charge when it makes sense
+- Discharge when it is economically beneficial
+- Stay idle when nothing is gained
 
 ---
 
-## ✨ Features
+## Why this integration?
 
-- 🤖 AI-based charge & discharge decisions
-- ☀️ PV surplus charging
-- ⚡ Price-based discharging
-- 🚨 Emergency charging up to SoC minimum
-- Automatic / Summer / Winter / Manual modes
-- 📊 Average charge price calculation
-- 💰 Profit & savings analytics
-- 🏠 Single & split grid support
-- 🔒 100 % local operation
+Many existing solutions rely on:
+- fixed schedules
+- static price thresholds
+- simple if-then rules
 
----
+**Zendure SmartFlow AI** follows a different philosophy:
 
-## 🧰 Requirements
+> **Context instead of rules.**
 
-- Home Assistant **2024.6+**
-- Zendure SolarFlow system
-- Sensors:
-  - Battery SoC
-  - PV power
-  - Grid power (single or split)
-- Optional electricity price sensor
+Decisions are always based on the complete situation:
+- Available PV power
+- Current household consumption
+- Battery state of charge
+- Current electricity price
 
 ---
 
-## 📦 Installation
+## Core concept
 
-Manual installation via `custom_components`  
-(HACS support planned)
+The integration continuously evaluates:
 
----
+- PV power
+- House load
+- Grid import / export
+- Battery SoC
+- Current electricity price (optional)
 
-## ⚙️ Configuration
+Possible outcomes:
+- 🔌 **Charge**
+- 🔋 **Discharge**
+- ⏸️ **Standby**
 
-Link:
-- Battery sensors
-- PV sensor
-- Grid sensors
-- Zendure control entities
-
----
-
-## 🚨 Emergency Charging Logic
-
-- Triggered when SoC ≤ emergency threshold
-- Charges battery until **SoC minimum is reached**
-- Automatically deactivates afterwards
+The logic is intentionally **conservative**:
+- No unnecessary discharging
+- No pointless charging
+- Safety always comes first
 
 ---
 
-## 🧠 Control Logic
+## Operating modes
 
-Priority:
-1. Safety
-2. PV surplus
-3. Price optimization
-4. User limits
+### 🔹 Automatic (recommended)
+Default mode.
 
----
-
-## 📊 Sensors
-
-- System status
-- AI status
-- Recommendation
-- Average charge price
-- Total profit / savings
+- Charges with PV surplus
+- Discharges when electricity is expensive
+- Hybrid summer/winter behavior
+- Best choice for most users
 
 ---
 
-## 🛣️ Roadmap
+### 🔹 Summer
+PV-focused.
 
-- Further AI improvements
-- Forecast integration
-- HACS release
+- Maximizes self-consumption
+- Discharges **only at very high prices**
+- Ideal for strong PV systems
 
 ---
 
-## 🤝 Contributing
+### 🔹 Winter
+Price-driven.
 
-Feedback, issues and pull requests are welcome.
+- Uses the battery actively to reduce costs
+- Discharges already at “expensive” prices
+- Suitable for low or no PV production
+
+---
+
+### 🔹 Manual
+Full user control.
+
+- AI is disabled
+- Manual charge / discharge / standby
+- Useful for testing or special situations
+
+---
+
+## Safety mechanisms
+
+### Minimum SoC
+- Battery will not discharge below this value
+
+### Maximum SoC
+- Charging stops above this level
+
+### Emergency charging
+- Activated at critical battery levels
+- Overrides all other logic
+
+---
+
+## Emergency charging explained
+
+Two thresholds are used:
+
+1️⃣ **Emergency start SoC**  
+2️⃣ **Minimum SoC (target)**
+
+The battery is charged **up to the minimum SoC**,  
+then emergency mode automatically ends.
+
+This ensures:
+- Battery protection
+- Safe operating state
+- No permanent emergency mode
+
+---
+
+## Entities
+
+- Selects: operating mode, manual action
+- Numbers: SoC limits, power limits, thresholds
+- Sensors: status, recommendations, prices, statistics
+
+---
+
+## Installation
+
+Manual installation or via HACS (recommended for v1.x).
+
+---
+
+## Known limitations
+
+- Select option labels currently in English
+- Price logic depends on sensor format
+
+---
+
+## Support
+
+- GitHub Issues for bugs and feature requests
+- Contributions welcome
+- Community-driven project
+
+---
+
+**Enjoy smart, safe and transparent battery control.**
