@@ -1,0 +1,8 @@
+{
+  "name": "Zendure SmartFlow AI",
+  "content_in_root": false,
+  "domains": ["zendure_smartflow_ai"],
+  "country": ["DE"],
+  "homeassistant": "2024.6.0",
+  "render_readme": true
+}
