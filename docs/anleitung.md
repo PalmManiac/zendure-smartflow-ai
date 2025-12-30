@@ -117,7 +117,7 @@ Man kann sich das wie eine Checkliste vorstellen:
 4) **Preisbasierte Entladung** (wenn Preis verfügbar)  
 5) **Standby**
 
-Mermaid-Flow (GitHub kompatibel):
+Ablaufdiagramm:
 
 ```mermaid
 flowchart TD
