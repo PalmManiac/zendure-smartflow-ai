@@ -136,7 +136,8 @@ flowchart TD
   J -- nein --> L{Teuer & Defizit & SoC > SoC-Min?}
   L -- ja --> M[Entladen Auto/Winter]
   L -- nein --> Z[Standby]
-
+```
+ 
 ---
 
 ## 5) Notladung (Safety): Trigger, Persistenz und Ende bei SoC-Min
