@@ -73,10 +73,26 @@
           "emergency": "Notladen"
         }
       },
+
+      "decision_reason": {
+        "name": "Entscheidungsgrund",
+        "state": {
+          "idle": "Leerlauf (keine Aktion erforderlich)",
+          "emergency_latched_charge": "Notladung aktiv (verriegelt)",
+          "manual_mode": "Manueller Modus aktiv",
+          "manual_charge": "Manuelles Laden",
+          "manual_discharge": "Manuelles Entladen",
+          "summer_cover_deficit": "Sommermodus: Netzbezug wird ausgeglichen",
+          "pv_surplus_charge": "Laden mit PV-Überschuss",
+          "very_expensive_force_discharge": "Zwangsentladung wegen sehr hohem Strompreis",
+          "expensive_discharge": "Entladung wegen hohem Strompreis",
+          "standby_no_condition_met": "Bereitschaft (keine Bedingung erfüllt)"
+        }
+      },
+
       "ai_debug": { "name": "KI-Debug" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
-
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
       "profit_eur": { "name": "Gewinn / Ersparnis (gesamt)" }
     }
