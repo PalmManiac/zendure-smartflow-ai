@@ -59,7 +59,7 @@ from .const import (
     DEFAULT_PRICE_THRESHOLD,
     DEFAULT_VERY_EXPENSIVE_THRESHOLD,
     DEFAULT_EMERGENCY_SOC,
-    DEFAULT_EMERGENCY_CHARGE_W,
+    DEFAULT_EMERGENCY_CHARGE,
     DEFAULT_PROFIT_MARGIN_PCT,
 
     # statuses
@@ -133,8 +133,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             SETTING_SOC_MAX: entry.options.get(SETTING_SOC_MAX, DEFAULT_SOC_MAX),
             SETTING_MAX_CHARGE: entry.options.get(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE),
             SETTING_MAX_DISCHARGE: entry.options.get(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE),
-            SETTING_EMERGENCY_CHARGE_W: entry.options.get(
-                SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W
+            SETTING_EMERGENCY_CHARGE: entry.options.get(
+                SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE_W
             ),
             SETTING_EMERGENCY_SOC: entry.options.get(
                 SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC
@@ -358,7 +358,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
-            emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W)
+            emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE_W)
 
             profit_margin_pct = self._get_setting(SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT)
 
