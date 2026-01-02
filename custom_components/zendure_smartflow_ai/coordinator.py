@@ -396,6 +396,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ac_mode = ZENDURE_MODE_INPUT
             in_w = 0.0
             out_w = 0.0
+            decision_reason = "idle"
 
             ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
@@ -409,6 +410,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ac_mode = ZENDURE_MODE_INPUT
                 in_w = min(max_charge, max(emergency_w, 0.0))
                 out_w = 0.0
+                decision_reason = "emergency_latched_charge"
 
             else:
                 # -----------------------------
@@ -454,6 +456,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         ac_mode = ZENDURE_MODE_OUTPUT
                         in_w = 0.0
                         out_w = min(max_discharge, float(deficit))
+                        decision_reason = "summer_cover_deficit"
     
                     # 1) PV surplus charge (needs house_load calculation)
                     elif surplus is not None and surplus > 50 and soc < soc_max:
@@ -462,6 +465,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         ac_mode = ZENDURE_MODE_INPUT
                         in_w = min(max_charge, surplus)
                         out_w = 0.0
+                        decision_reason = "pv_surplus_charge"
 
                     # 2) Price-based discharge
                     if price_now is None:
@@ -476,6 +480,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
                             out_w = min(max_discharge, float(deficit))
+                            decision_reason = "very_expensive_force_discharge"
 
                         elif price_now >= expensive and soc > soc_min and (deficit is not None and deficit > 0):
                             if is_winter or is_auto:
@@ -484,6 +489,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 ac_mode = ZENDURE_MODE_OUTPUT
                                 in_w = 0.0
                                 out_w = min(max_discharge, float(deficit))
+                                decision_reason = "expensive_discharge"
                             else:
                                 pass
                         else:
@@ -606,6 +612,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "recommendation": recommendation,
                 "debug": "OK" if status == STATUS_OK else status.upper(),
                 "details": details,
+                "decision_reason": decision_reason,
             }
 
         except Exception as err:
