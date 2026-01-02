@@ -499,6 +499,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         else:
                             if ai_status == AI_STATUS_STANDBY:
                                 recommendation = RECO_STANDBY
+                                decision_reason = "standby_no_condition_met"
 
             # -----------------------------
             # Price invalid status (only if user provided price source but parsing failed)
