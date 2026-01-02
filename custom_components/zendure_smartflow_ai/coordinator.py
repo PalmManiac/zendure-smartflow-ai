@@ -418,6 +418,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 # -----------------------------
                 if ai_mode == AI_MODE_MANUAL:
                     ai_status = AI_STATUS_MANUAL
+                    decision_reason = "manual_mode"
 
                     if manual_action == MANUAL_STANDBY:
                         recommendation = RECO_STANDBY
@@ -430,6 +431,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         ac_mode = ZENDURE_MODE_INPUT
                         in_w = min(max_charge, max_charge)
                         out_w = 0.0
+                        decision_reason = "manual_charge"
 
                     elif manual_action == MANUAL_DISCHARGE:
                         recommendation = RECO_DISCHARGE
@@ -437,8 +439,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         in_w = 0.0
                         target = deficit if deficit is not None else max_discharge
                         out_w = min(max_discharge, max(target or 0.0, 0.0))
+                        decision_reason = "manual_discharge"
 
                 else:
+                    decision_reason = "manual_standby"
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
                     # -----------------------------
