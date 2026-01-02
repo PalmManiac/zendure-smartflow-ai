@@ -71,7 +71,7 @@ SETTING_PRICE_THRESHOLD = "price_threshold"
 SETTING_VERY_EXPENSIVE_THRESHOLD = "very_expensive_threshold"
 
 SETTING_EMERGENCY_SOC = "emergency_soc"                # Notladung wenn SoC <= x
-SETTING_EMERGENCY_CHARGE_W = "emergency_charge_w"      # Notladeleistung (W)
+SETTING_EMERGENCY_CHARGE = "emergency_charge"      # Notladeleistung (W)
 
 SETTING_PROFIT_MARGIN_PCT = "profit_margin_pct"        # (für spätere Arbitrage-Logik) bereits dabei
 
