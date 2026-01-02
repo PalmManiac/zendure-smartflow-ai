@@ -1,6 +1,6 @@
 # Zendure SmartFlow AI – Anleitung
-Version: 1.0.0  
-Stand: 30.12.2025
+Version: 1.1.0  
+Stand: 02.01.2026
 
 > Diese Anleitung erklärt **nicht nur was** die Integration tut, sondern vor allem **wie und warum** die KI entscheidet.
 > Ziel: Du sollst jederzeit nachvollziehen können, **warum** gerade geladen / entladen / Standby ist – und wie du das Verhalten über die GUI steuerst.
