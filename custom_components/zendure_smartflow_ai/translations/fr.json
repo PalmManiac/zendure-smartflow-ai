@@ -37,19 +37,62 @@
       "max_charge": { "name": "Puissance de charge max." },
       "max_discharge": { "name": "Puissance de décharge max." },
       "emergency_charge": { "name": "Puissance de charge d'urgence" },
-      "emergency_soc": { "name": "Charge d'urgence sous SoC" },
+      "emergency_soc": { "name": "Charge d'urgence sous le SoC" },
       "very_expensive_threshold": { "name": "Seuil très cher" },
       "profit_margin_pct": { "name": "Marge bénéficiaire" }
     },
 
     "sensor": {
-      "status": { "name": "État du système" },
-      "ai_status": { "name": "Statut IA" },
-      "recommendation": { "name": "Recommandation IA" },
+      "status": {
+        "name": "État du système",
+        "state": {
+          "init": "Initialisation",
+          "ok": "OK",
+          "sensor_invalid": "Données capteurs invalides",
+          "price_invalid": "Données de prix invalides"
+        }
+      },
+      "ai_status": {
+        "name": "Statut IA",
+        "state": {
+          "standby": "Veille",
+          "charge_surplus": "Charge (surplus PV)",
+          "cover_deficit": "Compensation du déficit réseau",
+          "expensive_discharge": "Décharge (cher)",
+          "very_expensive_force": "Décharge forcée (très cher)",
+          "emergency_charge": "Charge d'urgence",
+          "manual": "Mode manuel"
+        }
+      },
+      "recommendation": {
+        "name": "Recommandation IA",
+        "state": {
+          "standby": "Aucune action",
+          "charge": "Charge",
+          "discharge": "Décharge",
+          "emergency": "Charge d'urgence"
+        }
+      },
+
+      "decision_reason": {
+        "name": "Raison de la décision",
+        "state": {
+          "idle": "Inactif (aucune action requise)",
+          "emergency_latched_charge": "Charge d'urgence active (verrouillée)",
+          "manual_mode": "Mode manuel actif",
+          "manual_charge": "Charge manuelle",
+          "manual_discharge": "Décharge manuelle",
+          "summer_cover_deficit": "Mode été : compensation du déficit réseau",
+          "pv_surplus_charge": "Charge avec surplus photovoltaïque",
+          "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
+          "expensive_discharge": "Décharge en raison d'un prix élevé",
+          "standby_no_condition_met": "Veille (aucune condition remplie)"
+        }
+      },
+
       "ai_debug": { "name": "Débogage IA" },
       "house_load": { "name": "Charge du foyer" },
       "price_now": { "name": "Prix actuel de l'électricité" },
-
       "avg_charge_price": { "name": "Prix moyen de charge de la batterie" },
       "profit_eur": { "name": "Gain / économies (total)" }
     }
