@@ -48,22 +48,24 @@
         "state": {
           "init": "Initialisation",
           "ok": "OK",
-          "sensor_invalid": "Données capteurs invalides",
+          "sensor_invalid": "Données des capteurs invalides",
           "price_invalid": "Données de prix invalides"
         }
       },
+
       "ai_status": {
         "name": "Statut IA",
         "state": {
           "standby": "Veille",
-          "charge_surplus": "Charge (surplus PV)",
+          "charge_surplus": "Charge",
           "cover_deficit": "Compensation du déficit réseau",
           "expensive_discharge": "Décharge (cher)",
-          "very_expensive_force": "Décharge forcée (très cher)",
+          "very_expensive_force": "Décharge (très cher)",
           "emergency_charge": "Charge d'urgence",
           "manual": "Mode manuel"
         }
       },
+
       "recommendation": {
         "name": "Recommandation IA",
         "state": {
@@ -78,16 +80,36 @@
         "name": "Raison de la décision",
         "state": {
           "idle": "Inactif (aucune action requise)",
-          "emergency_latched_charge": "Charge d'urgence active (verrouillée)",
+
+          "emergency_latched_charge": "Charge d'urgence active (sécurité)",
           "manual_mode": "Mode manuel actif",
           "manual_charge": "Charge manuelle",
           "manual_discharge": "Décharge manuelle",
+
           "summer_cover_deficit": "Mode été : compensation du déficit réseau",
           "pv_surplus_charge": "Charge avec surplus photovoltaïque",
-          "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
+
           "expensive_discharge": "Décharge en raison d'un prix élevé",
+          "very_expensive_force_discharge": "Décharge forcée en raison d'un prix très élevé",
+
+          "planning_charge": "Planification tarifaire : période de charge avantageuse",
+          "planning_last_chance": "Planification tarifaire : dernière opportunité avant le pic",
+
           "standby_no_condition_met": "Veille (aucune condition remplie)"
         }
+      },
+
+      "planning_active": {
+        "name": "Planification tarifaire active"
+      },
+      "planning_target_soc": {
+        "name": "SoC cible (planification)"
+      },
+      "planning_next_peak": {
+        "name": "Prochain pic tarifaire"
+      },
+      "planning_reason": {
+        "name": "Raison de la planification"
       },
 
       "ai_debug": { "name": "Débogage IA" },
