@@ -696,7 +696,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         					in_w = min(max_charge, float(planning.get("watts") or max_charge))
         					out_w = 0.0
         					decision_reason = planning.get("reason") or "planning_charge"
-
+						else:
+							pass
+							
 					else:
     					self._persist["planning_active"] = False
     					self._persist["planning_target_soc"] = None
