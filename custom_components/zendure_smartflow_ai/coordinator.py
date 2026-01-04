@@ -659,18 +659,45 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     decision_reason = "automatic_idle"
                     # --------------------------------------------------
-                    # V1.2 Preis-Vorplanung (noch inaktiv)
-                    # --------------------------------------------------
-                    planning = self._evaluate_price_planning(
-                        soc=soc,
-                        soc_max=soc_max,
-                        price_now=price_now,
-                    )
+					 # V1.2 Preis-Vorplanung – STEP 2 (aktiv)
+					 # --------------------------------------------------
+					 planning = self._evaluate_price_planning(
+    					 now_dt=now,
+    					 soc=soc,
+    					 soc_max=soc_max,
+    					 price_now=price_now,
+    					 expensive=expensive,
+    					 very_expensive=very_expensive,
+    					 profit_margin_pct=profit_margin_pct,
+    					 max_charge=max_charge,
+    					 surplus_w=surplus,
+					 )
 
-                    if planning:
-                        self._persist["planning_active"] = True
-                    else:
-                        self._persist["planning_active"] = False
+					 if planning:
+    					 self._persist["planning_active"] = True
+    					 self._persist["planning_target_soc"] = soc_max
+    					 self._persist["planning_next_peak"] = {
+        				 	 "peak_threshold": planning.get("peak_threshold"),
+        				 	 "peak_price": planning.get("peak_price"),
+        					 "peak_in_slots": planning.get("peak_in_slots"),
+        					 "cheap_threshold": planning.get("cheap_threshold"),
+    					 }
+    					 self._persist["planning_reason"] = planning.get("reason")
+
+    					 # >>> PLANUNG ÜBERSCHREIBT AUTOMATIK <<<
+    					 if planning.get("action") == "charge":
+        					 ai_status = AI_STATUS_CHARGE_SURPLUS
+        					 recommendation = RECO_CHARGE
+        					 ac_mode = ZENDURE_MODE_INPUT
+        					 in_w = min(max_charge, float(planning.get("watts") or max_charge))
+        					 out_w = 0.0
+        					 decision_reason = planning.get("reason") or "planning_charge"
+
+					 else:
+    					 self._persist["planning_active"] = False
+    					 self._persist["planning_target_soc"] = None
+    					 self._persist["planning_next_peak"] = None
+    					 self._persist["planning_reason"] = None
                         
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
