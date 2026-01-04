@@ -892,7 +892,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             details["control_layer"] = control_layer
 
 			details["planning"] = {
-   			 "active": bool(self._persist.get("planning_active")),
+   			 	"active": bool(self._persist.get("planning_active")),
     			"reason": self._persist.get("planning_reason"),
     			"target_soc": self._persist.get("planning_target_soc"),
     			"next_peak": self._persist.get("planning_next_peak"),
