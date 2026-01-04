@@ -52,11 +52,12 @@
           "price_invalid": "Preisdaten ungültig"
         }
       },
+
       "ai_status": {
         "name": "KI-Status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Laden (PV-Überschuss)",
+          "charge_surplus": "Laden",
           "cover_deficit": "Bezug ausgleichen",
           "expensive_discharge": "Entladen (teuer)",
           "very_expensive_force": "Entladen (sehr teuer)",
@@ -64,6 +65,7 @@
           "manual": "Manueller Modus"
         }
       },
+
       "recommendation": {
         "name": "KI-Empfehlung",
         "state": {
@@ -78,16 +80,36 @@
         "name": "Entscheidungsgrund",
         "state": {
           "idle": "Leerlauf (keine Aktion erforderlich)",
-          "emergency_latched_charge": "Notladung aktiv (verriegelt)",
+
+          "emergency_latched_charge": "Notladung aktiv (Sicherheitsreserve)",
           "manual_mode": "Manueller Modus aktiv",
           "manual_charge": "Manuelles Laden",
           "manual_discharge": "Manuelles Entladen",
+
           "summer_cover_deficit": "Sommermodus: Netzbezug wird ausgeglichen",
           "pv_surplus_charge": "Laden mit PV-Überschuss",
-          "very_expensive_force_discharge": "Zwangsentladung wegen sehr hohem Strompreis",
+
           "expensive_discharge": "Entladung wegen hohem Strompreis",
+          "very_expensive_force_discharge": "Zwangsentladung wegen sehr hohem Strompreis",
+
+          "planning_charge": "Preis-Vorplanung: günstiges Ladefenster",
+          "planning_last_chance": "Preis-Vorplanung: letzte Ladechance vor Preisspitze",
+
           "standby_no_condition_met": "Bereitschaft (keine Bedingung erfüllt)"
         }
+      },
+
+      "planning_active": {
+        "name": "Preis-Vorplanung aktiv"
+      },
+      "planning_target_soc": {
+        "name": "Ziel-SoC (Preis-Vorplanung)"
+      },
+      "planning_next_peak": {
+        "name": "Nächste Preisspitze (Planung)"
+      },
+      "planning_reason": {
+        "name": "Planungsbegründung"
       },
 
       "ai_debug": { "name": "KI-Debug" },
