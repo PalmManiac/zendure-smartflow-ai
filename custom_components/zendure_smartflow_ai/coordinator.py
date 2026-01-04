@@ -135,22 +135,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         
         # runtime settings registry (required by number.py)
 		self.runtime_settings: dict[str, float] = {
-  		    SETTING_SOC_MIN: entry.options.get(SETTING_SOC_MIN, DEFAULT_SOC_MIN),
-    		SETTING_SOC_MAX: entry.options.get(SETTING_SOC_MAX, DEFAULT_SOC_MAX),
-    		SETTING_MAX_CHARGE: entry.options.get(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE),
-    		SETTING_MAX_DISCHARGE: entry.options.get(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE),
-    		SETTING_EMERGENCY_CHARGE: entry.options.get(
-        		SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE
-    		),
-    		SETTING_EMERGENCY_SOC: entry.options.get(
-        		SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC
-    		),
-    		SETTING_VERY_EXPENSIVE_THRESHOLD: entry.options.get(
-        		SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
-    		),
-    		SETTING_PROFIT_MARGIN_PCT: entry.options.get(
-        		SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
-    		),
+            SETTING_SOC_MIN: entry.options.get(SETTING_SOC_MIN, DEFAULT_SOC_MIN),
+			SETTING_SOC_MAX: entry.options.get(SETTING_SOC_MAX, DEFAULT_SOC_MAX),
+			SETTING_MAX_CHARGE: entry.options.get(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE),
+			SETTING_MAX_DISCHARGE: entry.options.get(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE),
+			SETTING_EMERGENCY_CHARGE: entry.options.get(
+				SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE
+			),
+			SETTING_EMERGENCY_SOC: entry.options.get(
+				SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC
+			),
+			SETTING_VERY_EXPENSIVE_THRESHOLD: entry.options.get(
+				SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
+			),
+			SETTING_PROFIT_MARGIN_PCT: entry.options.get(
+				SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
+			),
 		}
 
         data = entry.data or {}
