@@ -182,16 +182,26 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # persistent analytics + emergency latch
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
-            "runtime_mode": dict(self.runtime_mode),
+    		"runtime_mode": dict(self.runtime_mode),
 
-            # ✅ NEW: emergency latch (stays active until soc_min is reached)
-            "emergency_active": False,
+    		"emergency_active": False,
 
-            "avg_charge_price": None,     # €/kWh
-            "charged_kwh": 0.0,
-            "discharged_kwh": 0.0,
-            "profit_eur": 0.0,
-            "last_ts": None,
+    		# --- V1.2 planning (inactive) ---
+    		"planning_active": False,
+    		"planning_target_soc": None,
+    		"planning_next_peak": None,   # dict or None
+    		"planning_reason": None,
+
+    		# --- anti oscillation ---
+    		"last_out_w": 0.0,
+    		"discharge_active_since": None,
+
+    		# analytics
+    		"avg_charge_price": None,
+    		"charged_kwh": 0.0,
+    		"discharged_kwh": 0.0,
+    		"profit_eur": 0.0,
+    		"last_ts": None,
 
             # Anti-Schwingung: letztes gesetztes Entlade-Setpoint (für Stabilisierung)
             "last_out_w": 0.0,
