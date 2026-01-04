@@ -193,8 +193,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     		"planning_reason": None,
 
     		# --- anti oscillation ---
-    		"last_out_w": 0.0,
-    		"discharge_active_since": None,
+			"last_out_w": 0.0,
+			"last_out_ts": None,
+			"discharge_active_since": None,
 
     		# analytics
     		"avg_charge_price": None,
@@ -203,9 +204,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     		"profit_eur": 0.0,
     		"last_ts": None,
 
-            # Anti-Schwingung: letztes gesetztes Entlade-Setpoint (für Stabilisierung)
-            "last_out_w": 0.0,
-            "last_out_ts": None,
         }
 
         super().__init__(
@@ -410,6 +408,23 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             target = last_w - ANTI_SWING_STEP_W
 
         return max(target, 0.0)
+        
+    # --------------------------------------------------
+    # V1.2 – Preis-Vorplanung (Platzhalter, noch inaktiv)
+    # --------------------------------------------------
+    def _evaluate_price_planning(
+        self,
+        soc: float,
+        soc_max: float,
+        price_now: float | None,
+    ) -> dict[str, Any] | None:
+        """
+        Platzhalter für V1.2 Preis-Vorplanung.
+
+        Liefert aktuell IMMER None → kein Verhalten wird verändert.
+        Dient nur als sauberer Hook für spätere Logik.
+        """
+        return None
 
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
@@ -531,6 +546,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 else:
                     decision_reason = "automatic_idle"
+                    # --------------------------------------------------
+                    # V1.2 Preis-Vorplanung (noch inaktiv)
+                    # --------------------------------------------------
+                    planning = self._evaluate_price_planning(
+                        soc=soc,
+                        soc_max=soc_max,
+                        price_now=price_now,
+                    )
+
+                    if planning:
+                        self._persist["planning_active"] = True
+                    else:
+                        self._persist["planning_active"] = False
+                        
                     # -----------------------------
                     # AUTOMATIC / SUMMER / WINTER
                     # -----------------------------
