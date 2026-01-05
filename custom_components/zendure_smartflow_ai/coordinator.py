@@ -39,7 +39,7 @@ from .const import (
     SETTING_PRICE_THRESHOLD,
     SETTING_VERY_EXPENSIVE_THRESHOLD,
     SETTING_EMERGENCY_SOC,
-    SETTING_EMERGENCY_W,
+    SETTING_EMERGENCY_CHARGE_W,
     SETTING_PROFIT_MARGIN_PCT,
     SETTING_AI_MODE,
     SETTING_MANUAL_ACTION,
@@ -52,7 +52,7 @@ from .const import (
     DEFAULT_PRICE_THRESHOLD,
     DEFAULT_VERY_EXPENSIVE_THRESHOLD,
     DEFAULT_EMERGENCY_SOC,
-    DEFAULT_EMERGENCY_W,
+    DEFAULT_EMERGENCY_CHARGE_W,
     DEFAULT_PROFIT_MARGIN_PCT,
 
     # modes
@@ -524,7 +524,7 @@ class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
             )
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
-            emergency_w = self._get_setting(SETTING_EMERGENCY_W, DEFAULT_EMERGENCY_W)
+            emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE_W, DEFAULT_EMERGENCY_CHARGE_W)
             profit_margin_pct = self._get_setting(
                 SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
             )
