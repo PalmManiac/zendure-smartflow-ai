@@ -179,6 +179,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_ts": None,
         }
 
+        self.hass.async_create_task(self._load())
+
         super().__init__(
             hass,
             _LOGGER,
