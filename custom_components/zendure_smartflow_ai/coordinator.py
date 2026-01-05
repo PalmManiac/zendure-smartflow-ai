@@ -88,11 +88,11 @@ _LOGGER = logging.getLogger(__name__)
 
 STORE_VERSION = 1
 
-# Anti-Schwingung (Regel-Stabilisierung) â verhindert Oszillation bei Defizitmessung
-ANTI_SWING_HOLD_S = 15          # Mindesthaltezeit fÃ¼r einen gesetzten Entlade-Wert
-ANTI_SWING_STEP_W = 120         # maximale Ãnderung pro Update-Zyklus (Rampe)
-ANTI_SWING_HYST_W = 100         # Hysterese um kleine MesssprÃ¼nge zu ignorieren
-ANTI_SWING_START_W = 80         # Defizit, ab dem Entladen Ã¼berhaupt startet
+# Anti-Schwingung (Regel-Stabilisierung) verhindert Oszillation bei Defizitmessung
+ANTI_SWING_HOLD_S = 15          # Mindesthaltezeit für einen gesetzten Entlade-Wert
+ANTI_SWING_STEP_W = 120         # maximale Änderung pro Update-Zyklus (Rampe)
+ANTI_SWING_HYST_W = 100         # Hysterese um kleine Messsprünge zu ignorieren
+ANTI_SWING_START_W = 80         # Defizit, ab dem Entladen überhaupt startet
 ANTI_SWING_STOP_W = 40          # Defizit, unter dem Entladen beendet werden darf (nach Hold)
 
 
