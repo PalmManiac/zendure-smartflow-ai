@@ -251,7 +251,7 @@ class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
         surplus_w > 0 means exporting to grid (PV surplus)
         """
         mode = self.entities.grid_mode
-        if mode == GRID_MODE_SIGNED and self.entities.grid_power:
+        if mode == GRID_MODE_SPLIT and self.entities.grid_power:
             gp = _to_float(self._state(self.entities.grid_power), None)
             if gp is None:
                 return None, None
