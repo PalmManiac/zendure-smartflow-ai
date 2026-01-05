@@ -85,10 +85,9 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
 STORE_VERSION = 1
 
-# Anti-Schwingung (Regel-Stabilisierung) verhindert Oszillation bei Defizitmessung
+# Anti-Schwingung (Regel-Stabilisierung) – verhindert Oszillation bei Defizitmessung
 ANTI_SWING_HOLD_S = 15          # Mindesthaltezeit für einen gesetzten Entlade-Wert
 ANTI_SWING_STEP_W = 120         # maximale Änderung pro Update-Zyklus (Rampe)
 ANTI_SWING_HYST_W = 100         # Hysterese um kleine Messsprünge zu ignorieren
@@ -132,7 +131,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        
+
         # runtime settings registry (required by number.py)
         self.runtime_settings: dict[str, float] = {
             SETTING_SOC_MIN: entry.options.get(SETTING_SOC_MIN, DEFAULT_SOC_MIN),
@@ -178,7 +177,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "manual_action": MANUAL_STANDBY,
         }
 
-        # persistent analytics + emergency latch
+        # persistent analytics + emergency latch + planning transparency
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
             "runtime_mode": dict(self.runtime_mode),
@@ -186,11 +185,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # emergency latch
             "emergency_active": False,
 
-            # --- V1.2 planning ---
-            "planning_active": False,
+            # --- V1.2 price planning ---
+            "planning_checked": False,
+            "planning_status": "not_checked",        # enum-like string
+            "planning_blocked_by": None,             # pv / soc / mode / price_data / price_now
+            "planning_active": False,                # true only when planning actually overrides & charges now
             "planning_target_soc": None,
-            "planning_next_peak": None,   # dict or None
-            "planning_reason": None,
+            "planning_next_peak": None,              # dict or None
+            "planning_reason": None,                 # string
 
             # anti oscillation
             "last_out_w": 0.0,
@@ -252,13 +254,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.entities.price_now:
             return _to_float(self._state(self.entities.price_now), None)
 
-        # export data list
         export = self._attr(self.entities.price_export, "data")
         if not isinstance(export, list) or not export:
             return None
 
-        now = dt_util.now()
-        idx = int((now.hour * 60 + now.minute) // 15)
+        now_local = dt_util.now()
+        idx = int((now_local.hour * 60 + now_local.minute) // 15)
 
         try:
             item = export[idx]
@@ -332,7 +333,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # settings (stored in config entry options)
     # --------------------------------------------------
     def _get_setting(self, key: str, default: float) -> float:
-        """Read setting from config entry options (single source of truth)."""
         try:
             val = self.entry.options.get(key, default)
             return float(val)
@@ -343,18 +343,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Anti-Schwingung / Stabilisierung Entladen
     # --------------------------------------------------
     def _smooth_discharge_output(self, target_w: float, deficit_w: float | None, now_dt) -> float:
-        """Stabilisiert Entladeleistung gegen Oszillation.
-
-        Hintergrund:
-        Der gemessene Netzbezug (Defizit) reagiert verzÃ¶gert auf das gesetzte Output-Limit.
-        Ohne Stabilisierung entsteht ein Regelkreis (z.B. 1200W Defizit -> 1100W Entladung -> 100W Defizit -> 100W Entladung -> 1100W Defizit ...).
-
-        Strategie:
-        - Mindesthaltezeit (ANTI_SWING_HOLD_S) fÃ¼r zuletzt gesetzten Wert
-        - Hysterese (ANTI_SWING_HYST_W) gegen kleine Schwankungen/Export-Spikes
-        - Rampenlimit (ANTI_SWING_STEP_W) pro Update
-        - Start/Stop-Schwellen (ANTI_SWING_START_W/STOP_W)
-        """
         last_w = float(self._persist.get("last_out_w") or 0.0)
         last_ts = self._persist.get("last_out_ts")
         last_dt = None
@@ -371,7 +359,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except Exception:
                 age_s = 1e9
 
-        # Wenn Defizit unbekannt ist: innerhalb Hold beibehalten, sonst sanft auf 0.
         if deficit_w is None:
             if age_s < ANTI_SWING_HOLD_S:
                 return last_w
@@ -379,28 +366,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         deficit = max(float(deficit_w), 0.0)
 
-        # Stop-Logik: erst nach Hold wirklich auf 0 gehen (Export-Spikes abfangen)
         if deficit < ANTI_SWING_STOP_W:
             if age_s < ANTI_SWING_HOLD_S and last_w > 0:
                 return last_w
             return 0.0
 
-        # Start-Logik: unter Start-Schwelle nicht anlaufen (gegen Rauschen)
         if last_w <= 0.0 and deficit < ANTI_SWING_START_W:
             return 0.0
 
-        # Hysterese: innerhalb +/- HYST um den aktuellen Wert nicht nachregeln
         if last_w > 0.0 and abs(deficit - last_w) < ANTI_SWING_HYST_W:
             return last_w
 
-        # Zielwert: wir wollen i.d.R. Defizit decken, aber stabil (Rampe)
         target = max(float(target_w), 0.0)
 
-        # Innerhalb Hold: nur in Richtung "mehr" reagieren, wenn Defizit kleiner wurde
         if age_s < ANTI_SWING_HOLD_S and last_w > 0.0 and deficit < last_w:
             target = max(last_w, target)
 
-        # Rampenlimit pro Update
         delta = target - last_w
         if delta > ANTI_SWING_STEP_W:
             target = last_w + ANTI_SWING_STEP_W
@@ -410,11 +391,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return max(target, 0.0)
 
     # --------------------------------------------------
-    # V1.2 â Preis-Vorplanung (aktiv)
+    # V1.2 – Preis-Vorplanung (immer transparent)
     # --------------------------------------------------
     def _evaluate_price_planning(
         self,
-        now_dt,
         soc: float,
         soc_max: float,
         price_now: float | None,
@@ -423,60 +403,121 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         profit_margin_pct: float,
         max_charge: float,
         surplus_w: float | None,
-    ) -> dict[str, Any] | None:
-        """Preis-Vorplanung (V1.2.0 Basis):
+        ai_mode: str,
+    ) -> dict[str, Any]:
+        """
+        Gibt IMMER ein Ergebnis zurück (keine Überraschungen):
 
-        Idee:
-        - Finde die nÃ¤chste Preisspitze (>= very_expensive ODER >= expensive + Marge)
-        - Schaue alle Slots bis dahin an und definiere das "Billigfenster" = gÃ¼nstigste 25%
-        - Wenn wir JETZT im Billigfenster sind, laden wir (Netzladung) so stark wie erlaubt,
-          bis soc_max erreicht ist.
-
-        EinschrÃ¤nkung:
-        - Wir planen nur mit dem Export-Preisarray (price_export:data), da price_now alleine keine Zukunft kennt.
-        - Wir planen nur bis zum nÃ¤chsten Peak innerhalb des heutigen Arrays.
+        action: "charge" oder "none"
+        status: enum-like string
+        blocked_by: optional string
+        reason: string
+        next_peak: dict|None (thresholds, peak_in_slots, etc)
         """
 
-        # Wenn SOC bereits voll -> nix planen
+        # default result
+        result: dict[str, Any] = {
+            "action": "none",
+            "watts": 0.0,
+            "status": "not_checked",
+            "blocked_by": None,
+            "reason": "not_checked",
+            "next_peak": None,
+        }
+
+        # Only meaningful in AUTO/WINTER (Sommer = Autarkie, Manual = user)
+        if ai_mode not in (AI_MODE_AUTOMATIC, AI_MODE_WINTER):
+            result.update(
+                status="planning_inactive_mode",
+                blocked_by="mode",
+                reason=f"planning_inactive_mode(mode={ai_mode})",
+            )
+            return result
+
+        # Full -> no need
         if soc >= soc_max:
-            return None
+            result.update(
+                status="planning_blocked_soc_full",
+                blocked_by="soc",
+                reason="soc_at_or_above_soc_max",
+            )
+            return result
 
-        # Wenn PV-Ãberschuss gerade da ist: PV-Logik soll gewinnen (kein Netzladen "dazwischen")
+        # PV surplus present -> PV should win
         if surplus_w is not None and float(surplus_w) > 50.0:
-            return None
+            result.update(
+                status="planning_blocked_pv_surplus",
+                blocked_by="pv",
+                reason=f"pv_surplus_blocks_grid_charge(surplus_w={float(surplus_w):.1f})",
+            )
+            return result
 
+        # No current price -> cannot decide "cheap now"
         if price_now is None:
-            return None
+            result.update(
+                status="planning_no_price_now",
+                blocked_by="price_now",
+                reason="price_now_missing",
+            )
+            return result
 
-        # Wir brauchen zukÃ¼nftige Preise
+        # Need future prices
         if not self.entities.price_export:
-            return None
+            result.update(
+                status="planning_no_price_data",
+                blocked_by="price_data",
+                reason="price_export_entity_missing",
+            )
+            return result
 
         export = self._attr(self.entities.price_export, "data")
         if not isinstance(export, list) or len(export) < 8:
-            return None
+            result.update(
+                status="planning_no_price_data",
+                blocked_by="price_data",
+                reason="price_export_data_missing_or_too_short",
+            )
+            return result
 
-        # Index im 15-Minuten Raster
-        local_now = dt_util.now()
-        idx_now = int((local_now.hour * 60 + local_now.minute) // 15)
+        # Index in 15-min slots (LOCAL time)
+        now_local = dt_util.now()
+        idx_now = int((now_local.hour * 60 + now_local.minute) // 15)
         if idx_now < 0 or idx_now >= len(export):
-            return None
+            result.update(
+                status="planning_no_price_data",
+                blocked_by="price_data",
+                reason="price_export_index_out_of_range",
+            )
+            return result
 
-        # Preise ab jetzt bis Ende
         future_prices: list[float] = []
         for i in range(idx_now, len(export)):
             item = export[i]
             if not isinstance(item, dict):
-                return None
+                result.update(
+                    status="planning_no_price_data",
+                    blocked_by="price_data",
+                    reason="price_export_item_not_dict",
+                )
+                return result
             p = _to_float(item.get("price_per_kwh"), None)
             if p is None:
-                return None
+                result.update(
+                    status="planning_no_price_data",
+                    blocked_by="price_data",
+                    reason="price_export_price_per_kwh_missing",
+                )
+                return result
             future_prices.append(float(p))
 
         if len(future_prices) < 8:
-            return None
+            result.update(
+                status="planning_no_price_data",
+                blocked_by="price_data",
+                reason="future_prices_too_short",
+            )
+            return result
 
-        # Peak-Schwelle: sehr teuer oder teuer+Marge
         margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
         peak_threshold = max(float(very_expensive), float(expensive) * (1.0 + margin))
 
@@ -488,57 +529,80 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 peak_price = p
                 break
 
-        # Kein Peak in Sicht -> keine Vorplanung
-        if peak_rel_idx is None or peak_rel_idx < 1:
-            return None
+        if peak_rel_idx is None:
+            result.update(
+                status="planning_no_peak_detected",
+                blocked_by=None,
+                reason=f"no_price_peak_found(peak_thr={peak_threshold:.4f})",
+                next_peak=None,
+            )
+            return result
 
         pre_peak = future_prices[:peak_rel_idx]
         if len(pre_peak) < 4:
-            return None
+            result.update(
+                status="planning_peak_detected_insufficient_window",
+                blocked_by="price_data",
+                reason="peak_found_but_pre_peak_window_too_short",
+            )
+            return result
 
-        # Billigfenster = gÃ¼nstigste 25% vor dem Peak
         sorted_pre = sorted(pre_peak)
         cheap_count = max(int(len(sorted_pre) * 0.25), 1)
         cheap_threshold = sorted_pre[cheap_count - 1]
 
-        # 1) Jetzt im Billigfenster -> Vollgas laden
+        next_peak = {
+            "peak_threshold": peak_threshold,
+            "peak_price": peak_price,
+            "peak_in_slots": peak_rel_idx,
+            "cheap_threshold": cheap_threshold,
+        }
+
+        # We have a peak, but are we cheap NOW?
         if float(price_now) <= float(cheap_threshold):
             watts = max(float(max_charge), 0.0)
-            return {
-                "action": "charge",
-                "watts": watts,
-                "reason": (
+            result.update(
+                action="charge",
+                watts=watts,
+                status="planning_charge_now",
+                reason=(
                     f"planning_charge_now(price={float(price_now):.4f}"
                     f"<=cheap_thr={float(cheap_threshold):.4f}, peak_thr={float(peak_threshold):.4f})"
                 ),
-                "cheap_threshold": cheap_threshold,
-                "peak_threshold": peak_threshold,
-                "peak_price": peak_price,
-                "peak_in_slots": peak_rel_idx,
-            }
+                next_peak=next_peak,
+            )
+            return result
 
-        # 2) Last-Chance: < 1h vor Peak noch laden (sofern noch unter Peak-Schwelle)
+        # Last chance: < 1h before peak and still below peak threshold
         if peak_rel_idx <= 4 and float(price_now) < float(peak_threshold):
             watts = max(float(max_charge), 0.0)
-            return {
-                "action": "charge",
-                "watts": watts,
-                "reason": (
+            result.update(
+                action="charge",
+                watts=watts,
+                status="planning_last_chance",
+                reason=(
                     f"planning_last_chance(peak_in_slots={peak_rel_idx}, "
                     f"price={float(price_now):.4f}<peak_thr={float(peak_threshold):.4f})"
                 ),
-                "cheap_threshold": cheap_threshold,
-                "peak_threshold": peak_threshold,
-                "peak_price": peak_price,
-                "peak_in_slots": peak_rel_idx,
-            }
+                next_peak=next_peak,
+            )
+            return result
 
-        return None
+        # Peak detected, but not in cheap window yet
+        result.update(
+            status="planning_waiting_for_cheap_window",
+            blocked_by=None,
+            reason=(
+                f"waiting_for_cheap_window(price={float(price_now):.4f}, "
+                f"cheap_thr={float(cheap_threshold):.4f}, peak_in_slots={peak_rel_idx})"
+            ),
+            next_peak=next_peak,
+        )
+        return result
 
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            # lazy-load store once
             if self._persist.get("last_ts") is None:
                 await self._load()
 
@@ -556,6 +620,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "details": {
                         "soc_raw": self._state(self.entities.soc),
                         "pv_raw": self._state(self.entities.pv),
+                        "planning_checked": False,
+                        "planning_status": "sensor_invalid",
+                        "planning_active": False,
+                        "planning_target_soc": None,
+                        "planning_reason": "sensor_invalid",
+                        "planning_next_peak": None,
                     },
                     "decision_reason": "sensor_invalid",
                 }
@@ -567,7 +637,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             max_discharge = self._get_setting(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE)
 
             expensive = self._get_setting(SETTING_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD)
-            very_expensive = self._get_setting(SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD)
+            very_expensive = self._get_setting(
+                SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
+            )
 
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
             emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE)
@@ -589,10 +661,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             elif grid_import is not None:
                 deficit = float(grid_import)
 
-            # --------------------------------------------------
             # Emergency latch logic
-            # Trigger at emergency_soc, keep active until soc_min reached
-            # --------------------------------------------------
             if soc <= emergency_soc:
                 self._persist["emergency_active"] = True
             if self._persist.get("emergency_active") and soc >= soc_min:
@@ -610,9 +679,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
-            # -----------------------------
+            # ---- reset planning flags each cycle (so sensors always update) ----
+            self._persist["planning_checked"] = False
+            self._persist["planning_status"] = "not_checked"
+            self._persist["planning_blocked_by"] = None
+            self._persist["planning_active"] = False
+            self._persist["planning_reason"] = None
+            self._persist["planning_target_soc"] = None
+            self._persist["planning_next_peak"] = None
+
             # SAFETY: Emergency charge (latched)
-            # -----------------------------
             if self._persist.get("emergency_active"):
                 ai_status = AI_STATUS_EMERGENCY_CHARGE
                 recommendation = RECO_EMERGENCY
@@ -622,9 +698,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 decision_reason = "emergency_latched_charge"
 
             else:
-                # -----------------------------
                 # MANUAL mode overrides
-                # -----------------------------
                 if ai_mode == AI_MODE_MANUAL:
                     ai_status = AI_STATUS_MANUAL
                     decision_reason = "manual_mode"
@@ -651,19 +725,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         decision_reason = "manual_discharge"
 
                 else:
-                    # -----------------------------
-                    # AUTOMATIC / SUMMER / WINTER
-                    # -----------------------------
                     is_summer = ai_mode == AI_MODE_SUMMER
                     is_winter = ai_mode == AI_MODE_WINTER
                     is_auto = ai_mode == AI_MODE_AUTOMATIC
 
                     planning_applied = False
 
-                    # V1.2 Preis-Vorplanung: nur in AUTO/WINTER (Sommer = Autarkie)
-                    if (is_auto or is_winter) and not is_summer:
+                    # ---- V1.2 Preis-Vorplanung (immer transparent) ----
+                    if is_auto or is_winter:
                         planning = self._evaluate_price_planning(
-                            now_dt=now,
                             soc=soc,
                             soc_max=soc_max,
                             price_now=price_now,
@@ -672,37 +742,34 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             profit_margin_pct=profit_margin_pct,
                             max_charge=max_charge,
                             surplus_w=surplus,
+                            ai_mode=ai_mode,
                         )
 
-                        if planning:
+                        self._persist["planning_checked"] = True
+                        self._persist["planning_status"] = str(planning.get("status") or "unknown")
+                        self._persist["planning_blocked_by"] = planning.get("blocked_by")
+                        self._persist["planning_reason"] = planning.get("reason")
+                        self._persist["planning_next_peak"] = planning.get("next_peak")
+                        # target SoC is meaningful as soon as we have a peak in sight
+                        if planning.get("next_peak") is not None:
+                            self._persist["planning_target_soc"] = float(soc_max)
+
+                        if planning.get("action") == "charge":
                             planning_applied = True
                             self._persist["planning_active"] = True
-                            self._persist["planning_target_soc"] = soc_max
-                            self._persist["planning_next_peak"] = {
-                                "peak_threshold": planning.get("peak_threshold"),
-                                "peak_price": planning.get("peak_price"),
-                                "peak_in_slots": planning.get("peak_in_slots"),
-                                "cheap_threshold": planning.get("cheap_threshold"),
-                            }
-                            self._persist["planning_reason"] = planning.get("reason")
 
-                            if planning.get("action") == "charge":
-                                ai_status = AI_STATUS_CHARGE_SURPLUS  # bewusst re-used: "charging"
-                                recommendation = RECO_CHARGE
-                                ac_mode = ZENDURE_MODE_INPUT
-                                in_w = min(max_charge, float(planning.get("watts") or max_charge))
-                                out_w = 0.0
-                                decision_reason = planning.get("reason") or "planning_charge"
-                        else:
-                            self._persist["planning_active"] = False
-                            self._persist["planning_target_soc"] = None
-                            self._persist["planning_next_peak"] = None
-                            self._persist["planning_reason"] = None
+                            ai_status = AI_STATUS_CHARGE_SURPLUS  # reused: "charging"
+                            recommendation = RECO_CHARGE
+                            ac_mode = ZENDURE_MODE_INPUT
+                            in_w = min(max_charge, float(planning.get("watts") or max_charge))
+                            out_w = 0.0
+                            decision_reason = str(planning.get("reason") or "planning_charge")
 
+                    # ---- regular logic only if planning is not actively charging now ----
                     if not planning_applied:
                         decision_reason = "automatic_idle"
 
-                        # âï¸ SOMMER: Autarkie priorisieren (preisunabhÃ¤ngig)
+                        # SOMMER: Autarkie priorisieren
                         if is_summer and deficit is not None and deficit > 0 and soc > soc_min:
                             ai_status = AI_STATUS_COVER_DEFICIT
                             recommendation = RECO_DISCHARGE
@@ -711,7 +778,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             out_w = min(max_discharge, float(deficit))
                             decision_reason = "summer_cover_deficit"
 
-                        # 1) PV surplus charge
+                        # PV surplus charge
                         elif surplus is not None and surplus > 50 and soc < soc_max:
                             ai_status = AI_STATUS_CHARGE_SURPLUS
                             recommendation = RECO_CHARGE
@@ -720,11 +787,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             out_w = 0.0
                             decision_reason = "pv_surplus_charge"
 
-                        # 2) Price-based discharge
-                        if price_now is None:
-                            # price optional -> no forced action
-                            pass
-                        else:
+                        # Price-based discharge
+                        if price_now is not None:
                             if price_now >= very_expensive and soc > soc_min and (deficit is not None and deficit > 0):
                                 ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
                                 recommendation = RECO_DISCHARGE
@@ -742,9 +806,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                     out_w = min(max_discharge, float(deficit))
                                     decision_reason = "expensive_discharge"
 
-            # -----------------------------
             # Anti-Schwingung: Entladeleistung stabilisieren (nur wenn OUTPUT aktiv)
-            # -----------------------------
             if ac_mode == ZENDURE_MODE_OUTPUT:
                 out_w = self._smooth_discharge_output(out_w, deficit, now)
                 self._persist["last_out_w"] = float(out_w)
@@ -753,7 +815,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist["last_out_w"] = 0.0
                 self._persist["last_out_ts"] = now.isoformat()
 
-            # Price invalid status (only if user provided price source but parsing failed)
+            # Price invalid status
             if (self.entities.price_now or self.entities.price_export) and price_now is None:
                 status = STATUS_PRICE_INVALID
 
@@ -767,9 +829,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._set_input_limit(in_w)
             await self._set_output_limit(out_w)
 
-            # -----------------------------
-            # Analytics: avg charge price + profit (approx, based on setpoints)
-            # -----------------------------
+            # Analytics
             last_ts = self._persist.get("last_ts")
             dt_s = None
             if last_ts:
@@ -789,7 +849,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 e_kwh = (in_w * dt_s) / 3600000.0
                 charged_kwh += e_kwh
 
-                # PV-Laden zÃ¤hlt als "0"
+                # PV-Laden zählt als "0"
                 if decision_reason == "pv_surplus_charge":
                     c_price = 0.0
                 else:
@@ -800,7 +860,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         avg_charge_price = float(c_price)
                     else:
                         prev_e = max(charged_kwh - e_kwh, 0.0)
-                        avg_charge_price = ((avg_charge_price * prev_e) + (float(c_price) * e_kwh)) / max(charged_kwh, 1e-9)
+                        avg_charge_price = (
+                            (avg_charge_price * prev_e) + (float(c_price) * e_kwh)
+                        ) / max(charged_kwh, 1e-9)
 
             if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
                 e_kwh = (out_w * dt_s) / 3600000.0
@@ -843,6 +905,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "emergency_charge_w": emergency_w,
                 "emergency_active": bool(self._persist.get("emergency_active")),
 
+                # planning transparency
+                "planning_checked": bool(self._persist.get("planning_checked")),
+                "planning_status": self._persist.get("planning_status"),
+                "planning_blocked_by": self._persist.get("planning_blocked_by"),
                 "planning_active": bool(self._persist.get("planning_active")),
                 "planning_target_soc": self._persist.get("planning_target_soc"),
                 "planning_next_peak": self._persist.get("planning_next_peak"),
