@@ -41,8 +41,6 @@ from .const import (
     SETTING_EMERGENCY_SOC,
     SETTING_EMERGENCY_CHARGE,
     SETTING_PROFIT_MARGIN_PCT,
-    SETTING_AI_MODE,
-    SETTING_MANUAL_ACTION,
 
     # defaults
     DEFAULT_SOC_MIN,
@@ -529,8 +527,8 @@ class ZendureSmartFlowAICoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
             )
 
-            ai_mode = str(self._get_setting(SETTING_AI_MODE, AI_MODE_AUTOMATIC))
-            manual_action = str(self._get_setting(SETTING_MANUAL_ACTION, MANUAL_STANDBY))
+            ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
+            manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
             # grid
             deficit, surplus = self._get_grid()
