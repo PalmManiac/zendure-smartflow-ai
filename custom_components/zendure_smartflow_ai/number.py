@@ -114,10 +114,22 @@ async def async_setup_entry(
     add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities(
+
+    entities = [
         ZendureSmartFlowNumber(entry, coordinator, description)
         for description in NUMBERS
-    )
+    ]
+
+    add_entities(entities)
+
+    # --- INITIALIZE RUNTIME SETTINGS ONCE (after entities exist) ---
+    for ent in entities:
+        key = ent.entity_description.runtime_key
+        if key not in coordinator.runtime_settings:
+            coordinator.runtime_settings[key] = entry.options.get(
+                key,
+                ent.entity_description.native_min_value,
+            )
 
 
 class ZendureSmartFlowNumber(NumberEntity):
@@ -142,6 +154,7 @@ class ZendureSmartFlowNumber(NumberEntity):
             "sw_version": INTEGRATION_VERSION,
         }
 
+        # Ensure runtime key exists (defensive)
         if description.runtime_key not in coordinator.runtime_settings:
             coordinator.runtime_settings[description.runtime_key] = entry.options.get(
                 description.runtime_key,
@@ -150,7 +163,11 @@ class ZendureSmartFlowNumber(NumberEntity):
 
     @property
     def native_value(self) -> float:
-        return float(self.coordinator.runtime_settings.get(self.entity_description.runtime_key, 0))
+        return float(
+            self.coordinator.runtime_settings.get(
+                self.entity_description.runtime_key, 0
+            )
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         self.coordinator.runtime_settings[self.entity_description.runtime_key] = float(value)
