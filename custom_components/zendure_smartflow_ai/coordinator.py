@@ -545,6 +545,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "recommendation": RECO_STANDBY,
                     "debug": "SENSOR_INVALID",
                     "details": {
+
                         "soc_raw": self._state(self.entities.soc),
                         "pv_raw": self._state(self.entities.pv),
                     },
@@ -751,6 +752,23 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._set_ac_mode(ac_mode)
             await self._set_input_limit(in_w)
             await self._set_output_limit(out_w)
+            
+            # --- house load calculation (total house consumption) ---
+            house_load = 0.0
+
+            # PV contribution
+            if pv is not None:
+                house_load = float(pv)
+
+            # subtract feed-in (surplus)
+            if surplus is not None and surplus > 0:
+                house_load -= float(surplus)
+
+            # add grid import
+            if deficit is not None and deficit > 0:
+                house_load += float(deficit)
+
+            house_load = max(house_load, 0.0)
 
             # Analytics
             last_ts = self._persist.get("last_ts")
@@ -845,6 +863,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "pv_w": pv,
                 "surplus": surplus,
                 "deficit": deficit,
+                 "house_load": int(round(house_load, 0)),
                 "price_now": price_now,
                 "expensive_threshold": expensive,
                 "very_expensive_threshold": very_expensive,
