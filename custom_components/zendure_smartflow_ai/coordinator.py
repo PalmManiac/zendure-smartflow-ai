@@ -155,10 +155,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "planning_next_peak": None,
             "planning_reason": None,
 
-            # anti oscillation
-            "last_out_w": 0.0,
-            "last_out_ts": None,
-
             # analytics
             "trade_avg_charge_price": None,
             "trade_charged_kwh": 0.0,
@@ -677,16 +673,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         # price-based discharge (only if deficit exists)
                         if price_now is not None:
                             if (
-                                price_now >= very_expensive
-                                and soc > soc_min
-                                and (deficit is not None and deficit > 0)
+                               price_now >= very_expensive
+                               and soc > soc_min
                             ):
-                                ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
-                                recommendation = RECO_DISCHARGE
-                                ac_mode = ZENDURE_MODE_OUTPUT
-                                in_w = 0.0
-                                out_w = float(max_discharge)
-                                decision_reason = "very_expensive_force_discharge"
+                               ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
+                               recommendation = RECO_DISCHARGE
+                               ac_mode = ZENDURE_MODE_OUTPUT
+                               in_w = 0.0
+
+                               # VERY EXPENSIVE: cover full house load, ignore discharge limit
+                               needed_w = 0.0
+                               if deficit is not None and deficit > 0:
+                                   needed_w = float(deficit)
+
+                               out_w = min(needed_w, 2400.0)
+                               decision_reason = "very_expensive_force_discharge_unlimited"
 
                             elif (
                                 price_now >= expensive
