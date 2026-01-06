@@ -61,7 +61,7 @@
           "expensive_discharge": "Entladen wegen hohem Strompreis",
           "very_expensive_force": "Maximales Entladen wegen extremer Preisspitze",
           "emergency_charge": "Notladung aktiv",
-          "manual": "Manueller Modus""
+          "manual": "Manueller Modus"
         }
       },
       "recommendation": {
