@@ -56,11 +56,11 @@
         "name": "AI status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Charging (PV surplus)",
-          "cover_deficit": "Covering grid deficit",
-          "expensive_discharge": "Discharging (expensive)",
-          "very_expensive_force": "Forced discharge (very expensive)",
-          "emergency_charge": "Emergency charge",
+          "charge_surplus": "Charging from PV surplus",
+          "cover_deficit": "Covering grid consumption from battery",
+          "expensive_discharge": "Discharging due to high electricity price",
+          "very_expensive_force": "Maximum discharge due to extreme price peak",
+          "emergency_charge": "Emergency charging active",
           "manual": "Manual mode"
         }
       },
@@ -82,29 +82,31 @@
           "manual_mode": "Manual mode active",
           "manual_charge": "Manual charging",
           "manual_discharge": "Manual discharging",
-          "summer_cover_deficit": "Summer mode: covering grid deficit",
+          "summer_cover_deficit": "Summer mode: covering grid consumption",
           "pv_surplus_charge": "Charging from PV surplus",
           "very_expensive_force_discharge": "Forced discharge due to very high price",
+          "very_expensive_force_discharge_unlimited": "Extreme price peak – unlimited discharge",
           "expensive_discharge": "Discharge due to high price",
-          "standby_no_condition_met": "Standby (no condition met)"
+          "planning_charge_now": "Planned charging active",
+          "standby_no_condition_met": "No rule condition met"
         }
       },
 
       "planning_status": {
         "name": "Price planning status",
         "state": {
-          "not_checked": "Not checked",
+          "not_checked": "Not checked yet",
           "sensor_invalid": "Invalid sensor data",
-          "planning_inactive_mode": "Inactive (mode)",
-          "planning_blocked_soc_full": "Blocked (SoC full)",
-          "planning_blocked_pv_surplus": "Blocked (PV surplus)",
-          "planning_no_price_now": "No current price",
-          "planning_no_price_data": "No future price data",
-          "planning_no_peak_detected": "No price peak detected",
-          "planning_peak_detected_insufficient_window": "Peak detected, but window too short",
-          "planning_waiting_for_cheap_window": "Peak detected – waiting for charge window",
-          "planning_charge_now": "Charge window active – charging now",
-          "planning_last_chance": "Last chance – charging before peak"
+          "planning_inactive_mode": "Planning inactive (mode)",
+          "planning_blocked_soc_full": "Battery full – planning blocked",
+          "planning_blocked_pv_surplus": "PV surplus – planning blocked",
+          "planning_no_price_now": "No current electricity price",
+          "planning_no_price_data": "No price data available",
+          "planning_no_peak_detected": "No relevant price peak detected",
+          "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
+          "planning_charge_now": "Planned charging active",
+          "planning_last_chance": "Last chance before price peak",
+          "planning_peak_detected_insufficient_window": "Price peak detected, but window too short"
         }
       },
       "planning_active": { "name": "Price planning active" },
