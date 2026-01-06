@@ -265,31 +265,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             return float(default)
 
-    # --------------------------------------------------
-    # Anti-Schwingung / Stabilisierung Entladen
-    # --------------------------------------------------
-    def _smooth_discharge_output(self, target_w: float, deficit_w: float | None, now_dt) -> float:
-        last_w = float(self._persist.get("last_out_w") or 0.0)
-        last_ts = self._persist.get("last_out_ts")
-
-        if last_ts:
-            try:
-                last_dt = dt_util.parse_datetime(str(last_ts))
-            except Exception:
-                last_dt = None
-        else:
-            last_dt = None
-
-        if last_dt:
-            dt_s = (now_dt - last_dt).total_seconds()
-            if dt_s < 30:
-                if abs(target_w - last_w) > 50:
-                    return last_w
-
-        self._persist["last_out_w"] = float(target_w)
-        self._persist["last_out_ts"] = now_dt.isoformat()
-        return float(target_w)
-
     def _get_grid(self) -> tuple[float | None, float | None]:
         """
         Returns (deficit_w, surplus_w).
@@ -678,7 +653,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
-                            out_w = min(max_discharge, float(deficit))
+                            out_w = max_discharge
                             decision_reason = "summer_cover_deficit"
 
                         # PV surplus charge
@@ -696,7 +671,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             recommendation = RECO_DISCHARGE
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
-                            out_w = min(max_discharge, float(deficit))
+                            out_w = max_discharge
                             decision_reason = "cover_deficit"
 
                         # price-based discharge (only if deficit exists)
@@ -722,7 +697,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 recommendation = RECO_DISCHARGE
                                 ac_mode = ZENDURE_MODE_OUTPUT
                                 in_w = 0.0
-                                out_w = min(max_discharge, float(deficit))
+                                out_w = max_discharge
                                 decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
@@ -738,10 +713,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
                 if recommendation == RECO_DISCHARGE:
                     recommendation = RECO_STANDBY
-
-            # smooth discharge changes
-            if ac_mode == ZENDURE_MODE_OUTPUT:
-                out_w = self._smooth_discharge_output(float(out_w), deficit, now)
 
             # Apply hardware setpoints
             if ac_mode == ZENDURE_MODE_OUTPUT:
