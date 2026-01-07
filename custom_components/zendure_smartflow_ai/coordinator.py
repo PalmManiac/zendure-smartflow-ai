@@ -624,19 +624,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["planning_active"] = planning.get("action") == "charge"
 
                         # In main logic, before applying planning charge
-                         if planning.get("action") == "charge":
-                             # PV surplus always wins, but MUST NOT block grid charging
-                             if surplus is not None and surplus > 50:
-                                 # handled by PV logic later
-                                 planning_applied = False
-                             else:
-                                 planning_applied = True
-                                 ai_status = AI_STATUS_PLANNED_CHARGE
-                                 recommendation = RECO_CHARGE
-                                 ac_mode = ZENDURE_MODE_INPUT
-                                 in_w = min(max_charge, float(planning.get("watts") or max_charge))
-                                 out_w = 0.0
-                                 decision_reason = str(planning.get("reason"))
+                        if planning.get("action") == "charge":
+                            # PV surplus always wins, but MUST NOT block grid charging
+                            if surplus is not None and surplus > 50:
+                                # handled by PV logic later
+                                planning_applied = False
+                            else:
+                                planning_applied = True
+                                ai_status = AI_STATUS_PLANNED_CHARGE
+                                recommendation = RECO_CHARGE
+                                ac_mode = ZENDURE_MODE_INPUT
+                                in_w = min(max_charge, float(planning.get("watts") or max_charge))
+                                out_w = 0.0
+                                decision_reason = str(planning.get("reason"))
                             
                     if not planning_applied:
                         decision_reason = "automatic_idle"
