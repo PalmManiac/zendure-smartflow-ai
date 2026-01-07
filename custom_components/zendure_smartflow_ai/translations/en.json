@@ -1,15 +1,4 @@
 {
-  "title": "Zendure SmartFlow AI",
-
-  "config": {
-    "step": {
-      "user": {
-        "title": "Set up Zendure SmartFlow AI",
-        "description": "Connect your Zendure and energy sensors for intelligent control."
-      }
-    }
-  },
-
   "entity": {
     "select": {
       "ai_mode": {
