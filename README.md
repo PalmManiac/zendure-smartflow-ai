@@ -228,15 +228,13 @@ In dieser Situation:
 
 ## Installation
 
-### Manuell
-1. Repository herunterladen  
-2. Ordner `zendure_smartflow_ai` nach  
-   `/config/custom_components/` kopieren  
-3. Home Assistant neu starten  
-4. Integration hinzufügen  
-
-### HACS
-> geplant ab Version 1.x
+### Über HACS
+1. HACS muß in Home Assistant installiert sein 
+2. HACS aufrufen und rechts oben auf die 3 Punkte klicken,   
+3. Den Menüpunkt `Benutzerdefinierte Repositories` anklicken 
+4. Im Feld Repository `https://github.com/PalmManiac/zendure-smartflow-ai` einfügen,
+   darunter als `Typ` Integration auswählen und auf `Hinzufügen` klicken.
+5. Nun taucht sie in der HACS-Liste auf und kann installiert werden.
 
 ---
 
