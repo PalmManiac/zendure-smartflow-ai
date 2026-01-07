@@ -94,7 +94,7 @@
           "planning_no_price_data": "Aucune donnée de prix disponible",
           "planning_no_peak_detected": "Aucun pic de prix pertinent détecté",
           "planning_waiting_for_cheap_window": "En attente d’une fenêtre de charge bon marché",
-          "planning_charge_now": "Charge planifiée en cours",
+          "planning_charge_now": "Planification tarifaire : charge autorisée",
           "planning_last_chance": "Dernière opportunité avant le pic de prix",
           "planning_peak_detected_insufficient_window": "Pic de prix détecté, mais fenêtre trop courte"
         }
