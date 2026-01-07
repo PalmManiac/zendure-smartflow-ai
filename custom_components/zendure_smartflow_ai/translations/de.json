@@ -94,7 +94,7 @@
           "planning_no_price_data": "Keine Preisdaten verfügbar",
           "planning_no_peak_detected": "Keine relevante Preisspitze erkannt",
           "planning_waiting_for_cheap_window": "Warte auf günstiges Ladefenster",
-          "planning_charge_now": "Geplantes Laden gestartet",
+          "planning_charge_now": "Preisplanung: Laden erlaubt",
           "planning_last_chance": "Letzte Chance vor Preisspitze",
           "planning_peak_detected_insufficient_window": "Preisspitze erkannt, aber Zeitfenster zu kurz"
         }
