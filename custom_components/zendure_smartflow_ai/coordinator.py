@@ -336,14 +336,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             return result
 
-        if surplus_w is not None and float(surplus_w) > 50:
-            result.update(
-                status="planning_blocked_pv_surplus",
-                blocked_by="pv",
-                reason=f"pv_surplus(block={float(surplus_w):.1f})",
-            )
-            return result
-
         if float(soc) >= float(soc_max) - 0.1:
             result.update(
                 status="planning_blocked_soc_full",
@@ -631,14 +623,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["planning_next_peak"] = planning.get("next_peak")
                         self._persist["planning_active"] = planning.get("action") == "charge"
 
-                        if planning.get("action") == "charge":
-                            planning_applied = True
-                            ai_status = AI_STATUS_CHARGE_SURPLUS  # oder neuer Status, siehe unten
-                            recommendation = RECO_CHARGE
-                            ac_mode = ZENDURE_MODE_INPUT
-                            in_w = min(max_charge, float(planning.get("watts") or max_charge))
-                            out_w = 0.0
-                            decision_reason = str(planning.get("reason") or "planning_charge")
+                        # In main logic, before applying planning charge
+                         if planning.get("action") == "charge":
+                             # PV surplus always wins, but MUST NOT block grid charging
+                             if surplus is not None and surplus > 50:
+                                 # handled by PV logic later
+                                 planning_applied = False
+                             else:
+                                 planning_applied = True
+                                 ai_status = AI_STATUS_PLANNED_CHARGE
+                                 recommendation = RECO_CHARGE
+                                 ac_mode = ZENDURE_MODE_INPUT
+                                 in_w = min(max_charge, float(planning.get("watts") or max_charge))
+                                 out_w = 0.0
+                                 decision_reason = str(planning.get("reason"))
                             
                     if not planning_applied:
                         decision_reason = "automatic_idle"
