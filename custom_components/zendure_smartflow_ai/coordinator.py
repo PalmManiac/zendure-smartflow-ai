@@ -653,18 +653,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_COVER_DEFICIT
                     in_w = 0.0
 
-                    raw_target = deficit_raw if deficit_raw and deficit_raw > 0 else self._persist.get("discharge_target_w", 0.0)
+                    raw_target = deficit_raw + 50 if deficit_raw and deficit_raw > 0 else prev
                     prev = float(self._persist.get("discharge_target_w") or 0.0)
 
-                    MAX_STEP = 150.0  # bewusst ruhig
+                    MAX_STEP_UP = 200.0   # darf schneller hoch
+                    MAX_STEP_DOWN = 0.0   # NICHT runterregeln im State!
 
                     if raw_target > prev:
-                        target = min(prev + MAX_STEP, raw_target)
+                        target = min(prev + MAX_STEP_UP, raw_target)
                     else:
-                        target = max(prev - MAX_STEP, raw_target)
+                        target = prev  # halten
 
                     self._persist["discharge_target_w"] = target
-                    out_w = min(max_discharge, max(target, 0.0))
+                    out_w = min(max_discharge, target)
 
                     decision_reason = "state_discharging"
                     goto_apply = True
