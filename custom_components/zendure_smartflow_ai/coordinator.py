@@ -543,7 +543,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 			# FIX 3: Ignore battery feed-in as PV surplus
 			# If price logic wants discharge, any feed-in is NOT PV
 			# --------------------------------------------------
-			if surplus is not None and surplus > 0:
+            if surplus is not None and surplus > 0:
                 if (
                     price_now is not None
                     and (
@@ -730,8 +730,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             and price_now >= expensive
                             and price_now < very_expensive
                             and soc > soc_min
-                            and deficit is not None
-                            and deficit > 0
                         ):
 
                             ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
