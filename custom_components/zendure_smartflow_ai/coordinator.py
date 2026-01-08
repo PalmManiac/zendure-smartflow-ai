@@ -175,13 +175,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "discharge_target_w": 0.0,
             "profit_eur": 0.0,
             "last_ts": None,
-            "power_state": "idle",   # idle | discharging | charging
+            "power_state": "idle",  # idle | discharging | charging
 
             # --- smoothing / EMA ---
             "ema_deficit": None,
             "ema_surplus": None,
             "ema_house_load": None,
             "ema_last_ts": None,
+
+            # output smoothing timestamps (manual/discharge)
+            "last_output_ts": None,
         }
 
         super().__init__(
@@ -321,16 +324,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         surplus_w: float | None,
         ai_mode: str,
     ) -> dict[str, Any]:
-        """Price planning based on *peak average* and profit margin.
-
-        Logic (as discussed):
-        - Search upcoming prices for a peak (use maximum in horizon).
-        - Compute average of the peak segment (>= 90% of the peak).
-        - Compute target price = peak_avg * (1 - margin).
-        - If there is no slot before the peak below target: do nothing.
-        - If current price <= target: plan/charge now (limited by max_charge).
-        - If peak is very near (<= 4 slots) and price is still below peak_avg: last chance charge.
-        """
+        """Price planning based on peak average and profit margin."""
         result: dict[str, Any] = {
             "action": "none",
             "watts": 0.0,
@@ -341,85 +335,45 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
 
         if ai_mode != AI_MODE_AUTOMATIC:
-            result.update(
-                status="planning_inactive_mode",
-                blocked_by="mode",
-                reason=f"inactive_mode(mode={ai_mode})",
-            )
+            result.update(status="planning_inactive_mode", blocked_by="mode")
             return result
 
         if float(soc) >= float(soc_max) - 0.1:
-            result.update(
-                status="planning_blocked_soc_full",
-                blocked_by="soc",
-                reason=f"soc_full(soc={float(soc):.1f}>=soc_max={float(soc_max):.1f})",
-            )
+            result.update(status="planning_blocked_soc_full", blocked_by="soc")
             return result
 
         if price_now is None:
-            result.update(
-                status="planning_no_price_now",
-                blocked_by="price_now",
-                reason="price_now_missing",
-            )
+            result.update(status="planning_no_price_now", blocked_by="price_now")
             return result
 
         if not self.entities.price_export:
-            result.update(
-                status="planning_no_price_data",
-                blocked_by="price_data",
-                reason="price_export_entity_missing",
-            )
+            result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
         export = self._attr(self.entities.price_export, "data")
         if not isinstance(export, list):
-            result.update(
-                status="planning_no_price_data",
-                blocked_by="price_data",
-                reason="price_export_data_not_list",
-            )
+            result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
         future_prices: list[float] = []
         for item in export:
             if not isinstance(item, dict):
-                result.update(
-                    status="planning_no_price_data",
-                    blocked_by="price_data",
-                    reason="price_export_item_not_dict",
-                )
                 return result
             p = _to_float(item.get("price_per_kwh"), None)
             if p is None:
-                result.update(
-                    status="planning_no_price_data",
-                    blocked_by="price_data",
-                    reason="price_export_price_per_kwh_missing",
-                )
                 return result
             future_prices.append(float(p))
 
         if len(future_prices) < 8:
-            result.update(
-                status="planning_no_price_data",
-                blocked_by="price_data",
-                reason="future_prices_too_short",
-            )
+            result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
         margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
-
         peak_rel_idx = int(max(range(len(future_prices)), key=lambda i: float(future_prices[i])))
         peak_price = float(future_prices[peak_rel_idx])
-
         pre_peak = future_prices[:peak_rel_idx]
         if len(pre_peak) < 4:
-            result.update(
-                status="planning_peak_detected_insufficient_window",
-                blocked_by="price_data",
-                reason="peak_found_but_pre_peak_window_too_short",
-            )
+            result.update(status="planning_peak_detected_insufficient_window", blocked_by="price_data")
             return result
 
         seg_thr = peak_price * 0.90
@@ -433,83 +387,31 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         target_price = peak_avg * (1.0 - margin)
 
         if peak_avg < float(expensive) and peak_price < float(very_expensive):
-            result.update(
-                status="planning_no_peak_detected",
-                blocked_by=None,
-                reason=f"peak_below_thresholds(peak_avg={peak_avg:.4f})",
-                next_peak=None,
-            )
+            result.update(status="planning_no_peak_detected", blocked_by=None)
             return result
 
         cheap_slots = [float(p) for p in pre_peak if float(p) <= float(target_price)]
         if not cheap_slots:
-            result.update(
-                status="planning_waiting_for_cheap_window",
-                blocked_by="price_data",
-                reason=f"no_charge_window_below_target(target={target_price:.4f}, peak_avg={peak_avg:.4f})",
-                next_peak={
-                    "peak_price": peak_price,
-                    "peak_avg": peak_avg,
-                    "peak_in_slots": peak_rel_idx,
-                    "target_price": target_price,
-                },
-            )
+            result.update(status="planning_waiting_for_cheap_window", blocked_by="price_data")
             return result
 
-        next_peak = {
-            "peak_price": peak_price,
-            "peak_avg": peak_avg,
-            "peak_in_slots": peak_rel_idx,
-            "target_price": target_price,
-            "cheap_threshold": min(cheap_slots),
-        }
-
-        if float(price_now) <= float(target_price):
+        if float(price_now) <= float(target_price) or (peak_rel_idx <= 4 and float(price_now) < float(peak_avg)):
             watts = max(float(max_charge), 0.0)
-            result.update(
-                action="charge",
-                watts=watts,
-                status="planning_charge_now",
-                reason=(
-                    f"planning_charge_now(price={float(price_now):.4f}<=target={float(target_price):.4f}, "
-                    f"peak_avg={float(peak_avg):.4f})"
-                ),
-                next_peak=next_peak,
-            )
+            result.update(action="charge", watts=watts, status="planning_charge_now")
             return result
 
-        if peak_rel_idx <= 4 and float(price_now) < float(peak_avg):
-            watts = max(float(max_charge), 0.0)
-            result.update(
-                action="charge",
-                watts=watts,
-                status="planning_last_chance",
-                reason=(
-                    f"planning_last_chance(peak_in_slots={peak_rel_idx}, "
-                    f"price={float(price_now):.4f}<peak_avg={float(peak_avg):.4f})"
-                ),
-                next_peak=next_peak,
-            )
-            return result
-
-        result.update(
-            action="none",
-            watts=0.0,
-            status="planning_waiting_for_cheap_window",
-            reason=f"waiting_for_target_window(price={ float(price_now):.4f}>target={float(target_price):.4f})",
-            next_peak=next_peak,
-        )
+        result.update(status="planning_waiting_for_cheap_window")
         return result
 
     # --------------------------------------------------
     async def _async_update_data(self) -> dict[str, Any]:
         try:
+            # load persisted state once
             if self._persist.get("last_ts") is None:
                 await self._load()
                 self._persist["last_ts"] = dt_util.utcnow().isoformat()
 
             now = dt_util.utcnow()
-            prev = None
 
             soc = _to_float(self._state(self.entities.soc), None)
             pv = _to_float(self._state(self.entities.pv), None)
@@ -521,7 +423,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "recommendation": RECO_STANDBY,
                     "debug": "SENSOR_INVALID",
                     "details": {
-
                         "soc_raw": self._state(self.entities.soc),
                         "pv_raw": self._state(self.entities.pv),
                     },
@@ -537,35 +438,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             max_discharge = self._get_setting(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE)
 
             expensive = self._get_setting(SETTING_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD)
-            very_expensive = self._get_setting(
-                SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD
-            )
+            very_expensive = self._get_setting(SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD)
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
             emergency_w = self._get_setting(SETTING_EMERGENCY_CHARGE, DEFAULT_EMERGENCY_CHARGE)
-            profit_margin_pct = self._get_setting(
-                SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT
-            )
+            profit_margin_pct = self._get_setting(SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT)
 
             ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
-            deficit, surplus = self._get_grid()
+            deficit_raw, surplus_raw = self._get_grid()
             price_now = self._get_price_now()
 
-            # --- HARD SANITIZE GRID VALUES (NO None BEYOND THIS POINT) ---
-            deficit = float(deficit) if deficit is not None else 0.0
-            surplus = float(surplus) if surplus is not None else 0.0
-
-            deficit_raw = deficit
-            surplus_raw = surplus
-
-            power_state = self._persist.get("power_state") or "idle"
-            goto_apply = False
+            # sanitize grid values so we never compare None with floats
+            deficit_raw = float(deficit_raw) if deficit_raw is not None else 0.0
+            surplus_raw = float(surplus_raw) if surplus_raw is not None else 0.0
 
             # --------------------------------------------------
-            # EMA smoothing to avoid sawtooth discharge
+            # EMA smoothing (surplus only)
             # --------------------------------------------------
-            EMA_TAU_S = 45.0  # seconds (higher = smoother)
+            EMA_TAU_S = 45.0
             now_ts = now.timestamp()
 
             last_ts = self._persist.get("ema_last_ts")
@@ -574,15 +465,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 dt = max(now_ts - float(last_ts), 0.0)
 
-            # dynamic alpha (stable with variable update interval)
-            if dt is None or dt <= 0:
-                alpha = 1.0
-            else:
-                alpha = min(dt / (EMA_TAU_S + dt), 1.0)
+            alpha = 1.0 if dt is None or dt <= 0 else min(dt / (EMA_TAU_S + dt), 1.0)
 
-            def _ema(key: str, value: float | None) -> float | None:
-                if value is None:
-                    return None
+            def _ema(key: str, value: float) -> float:
                 prev = self._persist.get(key)
                 if prev is None:
                     self._persist[key] = float(value)
@@ -591,148 +476,49 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist[key] = float(v)
                 return float(v)
 
-            # deficit = _ema("ema_deficit", deficit)
-            surplus = _ema("ema_surplus", surplus)
-
+            surplus = _ema("ema_surplus", surplus_raw)
             self._persist["ema_last_ts"] = now_ts
 
             # --------------------------------------------------
             # PV surplus hysteresis (stop discharge safely)
             # --------------------------------------------------
-            PV_STOP_W = 80.0     # W: surplus above this = real PV surplus
-            PV_CLEAR_W = 30.0    # W: below this = no surplus anymore
-            PV_STOP_N = 3        # consecutive cycles to stop discharge
-            PV_CLEAR_N = 6       # cycles to allow discharge again
+            PV_STOP_W = 80.0
+            PV_CLEAR_W = 30.0
+            PV_STOP_N = 3
+            PV_CLEAR_N = 6
 
-            if surplus is not None and surplus > PV_STOP_W:
-                self._persist["pv_surplus_cnt"] += 1
+            if surplus > PV_STOP_W:
+                self._persist["pv_surplus_cnt"] = int(self._persist.get("pv_surplus_cnt") or 0) + 1
                 self._persist["pv_clear_cnt"] = 0
             else:
                 self._persist["pv_surplus_cnt"] = 0
-                if surplus is not None and surplus < PV_CLEAR_W:
-                    self._persist["pv_clear_cnt"] += 1
+                if surplus < PV_CLEAR_W:
+                    self._persist["pv_clear_cnt"] = int(self._persist.get("pv_clear_cnt") or 0) + 1
                 else:
                     self._persist["pv_clear_cnt"] = 0
 
-            pv_stop_discharge = self._persist["pv_surplus_cnt"] >= PV_STOP_N
-            
+            pv_stop_discharge = int(self._persist.get("pv_surplus_cnt") or 0) >= PV_STOP_N
+
             # --------------------------------------------------
-            # Ignore battery feed-in as PV surplus during discharge logic
-            # --------------------------------------------------
-            if (
-                surplus is not None
-                and surplus > 0
-                and price_now is not None
-                and price_now >= expensive
-                and soc > soc_min
-            ):
-                surplus = None
-				
             # Emergency latch
+            # --------------------------------------------------
             if soc <= emergency_soc:
                 self._persist["emergency_active"] = True
             if self._persist.get("emergency_active") and soc >= soc_min:
                 self._persist["emergency_active"] = False
-            
-            # ==================================================
-            # HARD POWER STATE MACHINE (NO OSCILLATION)
-            # ==================================================
 
-            # ---------- DISCHARGING ----------
-            if power_state == "discharging":
-
-                # EXIT CONDITIONS
-                if soc <= soc_min:
-                    self._persist["power_state"] = "idle"
-                    decision_reason = "state_exit_soc_min"
-
-                elif pv_stop_discharge:
-                    self._persist["power_state"] = "charging"
-                    decision_reason = "state_exit_pv_surplus"
-
-                else:
-                    # STABLE DISCHARGE REGULATION
-                    ac_mode = ZENDURE_MODE_OUTPUT
-                    recommendation = RECO_DISCHARGE
-                    ai_status = AI_STATUS_COVER_DEFICIT
-                    in_w = 0.0
-
-                    prev = float(self._persist.get("discharge_target_w") or 0.0)
-                    raw_target = deficit_raw if deficit_raw > 0 else prev
-
-                    MAX_STEP_UP = 200.0   # darf schneller hoch
-                    MAX_STEP_DOWN = 0.0   # NICHT runterregeln im State!
-
-                    if raw_target > prev:
-                        target = min(prev + MAX_STEP_UP, raw_target)
-                    else:
-                        target = prev  # halten
-
-                    self._persist["discharge_target_w"] = target
-                    out_w = min(max_discharge, target)
-
-                    decision_reason = "state_discharging"
-                    goto_apply = True
-
-
-            # ---------- CHARGING ----------
-            elif power_state == "charging":
-
-                if soc >= soc_max or surplus <= 0:
-                    self._persist["power_state"] = "idle"
-                    decision_reason = "state_charge_done"
-
-                else:
-                    ac_mode = ZENDURE_MODE_INPUT
-                    recommendation = RECO_CHARGE
-                    ai_status = AI_STATUS_CHARGE_SURPLUS
-                    in_w = min(max_charge, float(surplus))
-                    out_w = 0.0
-                    decision_reason = "state_charging"
-                    goto_apply = True
-
-            # ---------- IDLE (DECISION ONLY) ----------
-            elif power_state == "idle":
-
-                if deficit_raw is not None and deficit_raw > 80 and soc > soc_min:
-                    self._persist["power_state"] = "discharging"
-                    power_state = "discharging"
-                    decision_reason = "state_enter_discharge"
-                    goto_apply = False  # nächste Runde regelt
-                    # NICHT apply, sondern raus
-
-                elif surplus is not None and float(surplus) > 80 and soc < soc_max:
-                    self._persist["power_state"] = "charging"
-                    power_state = "charging"
-                    decision_reason = "state_enter_charge"
-                    goto_apply = False
-
-                else:
-                    ai_status = AI_STATUS_STANDBY
-                    recommendation = RECO_STANDBY
-                    ac_mode = ZENDURE_MODE_INPUT
-                    in_w = 0.0
-                    out_w = 0.0
-                    decision_reason = "state_idle"
-                    goto_apply = True
-
-            state_machine_active = power_state in ("discharging", "charging")
-
-            if goto_apply:
-                await self._set_ac_mode(ac_mode)
-                await self._set_input_limit(in_w)
-                await self._set_output_limit(out_w)
-                await self._save()
-
+            # --------------------------------------------------
+            # Decide setpoints (MANUAL / EMERGENCY / STATE MACHINE)
+            # --------------------------------------------------
             status = STATUS_OK
-            ai_status = AI_STATUS_STANDBY
-            recommendation = RECO_STANDBY
             ac_mode = ZENDURE_MODE_INPUT
             in_w = 0.0
             out_w = 0.0
-            decision_reason = "idle"
+            recommendation = RECO_STANDBY
+            decision_reason = "standby"
+            power_state = str(self._persist.get("power_state") or "idle")
 
-            # reset planning flags each cycle
+            # reset planning flags each cycle (still exposed via sensors, even if not used)
             self._persist["planning_checked"] = False
             self._persist["planning_status"] = "not_checked"
             self._persist["planning_blocked_by"] = None
@@ -741,292 +527,138 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_target_soc"] = None
             self._persist["planning_next_peak"] = None
 
-            # Emergency charge (latched)
+            # 1) emergency always wins
             if self._persist.get("emergency_active"):
-                ai_status = AI_STATUS_EMERGENCY_CHARGE
-                recommendation = RECO_EMERGENCY
                 ac_mode = ZENDURE_MODE_INPUT
-                in_w = min(max_charge, max(emergency_w, 0.0))
+                recommendation = RECO_EMERGENCY
+                in_w = min(max_charge, max(float(emergency_w), 0.0))
                 out_w = 0.0
                 decision_reason = "emergency_latched_charge"
+                self._persist["power_state"] = "charging"
 
+            # 2) manual mode
+            elif ai_mode == AI_MODE_MANUAL:
+                recommendation = RECO_STANDBY
+                decision_reason = "manual_mode"
+                self._persist["power_state"] = "idle"
+
+                if manual_action == MANUAL_STANDBY:
+                    ac_mode = ZENDURE_MODE_INPUT
+                    in_w = 0.0
+                    out_w = 0.0
+                    recommendation = RECO_STANDBY
+                    decision_reason = "manual_standby"
+
+                elif manual_action == MANUAL_CHARGE:
+                    ac_mode = ZENDURE_MODE_INPUT
+                    in_w = float(max_charge)
+                    out_w = 0.0
+                    recommendation = RECO_CHARGE
+                    decision_reason = "manual_charge"
+
+                elif manual_action == MANUAL_DISCHARGE:
+                    ac_mode = ZENDURE_MODE_OUTPUT
+                    in_w = 0.0
+
+                    prev_target = float(self._persist.get("discharge_target_w") or 0.0)
+                    raw_target = float(deficit_raw)
+
+                    MAX_STEP = 250.0
+                    if raw_target > prev_target:
+                        target = min(prev_target + MAX_STEP, raw_target)
+                    else:
+                        target = max(prev_target - MAX_STEP, raw_target)
+
+                    self._persist["discharge_target_w"] = float(target)
+                    out_w = min(float(max_discharge), max(float(target), 0.0))
+                    recommendation = RECO_DISCHARGE
+                    decision_reason = "manual_discharge"
+
+            # 3) automatic state machine (SUMMER/WINTER/AUTO all share this stable core)
             else:
-                # --------------------------------------------------
-                # NOT emergency → continue normal logic
-                # --------------------------------------------------
+                # if we are discharging, ignore "surplus" decision until hysteresis stops it
+                if power_state == "discharging" and pv_stop_discharge:
+                    power_state = "charging"
+                    self._persist["power_state"] = "charging"
 
-                if state_machine_active:
-                    # STATE MACHINE IST AKTIV → KEINE NEUE ENTSCHEIDUNG
-                    pass
+                if power_state == "charging" and (soc >= soc_max or surplus <= 0.0):
+                    power_state = "idle"
+                    self._persist["power_state"] = "idle"
+
+                if power_state == "discharging" and soc <= soc_min:
+                    power_state = "idle"
+                    self._persist["power_state"] = "idle"
+
+                # enter/keep states
+                if power_state == "idle":
+                    if deficit_raw > 80.0 and soc > soc_min:
+                        power_state = "discharging"
+                        self._persist["power_state"] = "discharging"
+                        decision_reason = "state_enter_discharge"
+                    elif surplus > 80.0 and soc < soc_max:
+                        power_state = "charging"
+                        self._persist["power_state"] = "charging"
+                        decision_reason = "state_enter_charge"
+                    else:
+                        decision_reason = "state_idle"
+
+                if power_state == "discharging":
+                    ac_mode = ZENDURE_MODE_OUTPUT
+                    recommendation = RECO_DISCHARGE
+
+                    prev_target = float(self._persist.get("discharge_target_w") or 0.0)
+                    raw_target = float(deficit_raw) if deficit_raw > 0.0 else prev_target
+
+                    MAX_STEP_UP = 200.0
+                    if raw_target > prev_target:
+                        target = min(prev_target + MAX_STEP_UP, raw_target)
+                    else:
+                        target = prev_target  # hold (prevents saw-tooth)
+
+                    self._persist["discharge_target_w"] = float(target)
+                    out_w = min(float(max_discharge), max(float(target), 0.0))
+                    in_w = 0.0
+                    decision_reason = decision_reason if decision_reason.startswith("state_enter") else "state_discharging"
+
+                elif power_state == "charging":
+                    ac_mode = ZENDURE_MODE_INPUT
+                    recommendation = RECO_CHARGE
+                    in_w = min(float(max_charge), max(float(surplus), 0.0))
+                    out_w = 0.0
+                    decision_reason = decision_reason if decision_reason.startswith("state_enter") else "state_charging"
 
                 else:
-                    # Manual mode
-                    if ai_mode == AI_MODE_MANUAL:
-                        ai_status = AI_STATUS_MANUAL
-                        decision_reason = "manual_mode"
+                    # idle / standby
+                    ac_mode = ZENDURE_MODE_INPUT
+                    recommendation = RECO_STANDBY
+                    in_w = 0.0
+                    out_w = 0.0
 
-                    if manual_action == MANUAL_STANDBY:
-                        recommendation = RECO_STANDBY
-                        ac_mode = ZENDURE_MODE_INPUT
-                        in_w = 0.0
-                        out_w = 0.0
-
-                    elif manual_action == MANUAL_CHARGE:
-                        recommendation = RECO_CHARGE
-                        ac_mode = ZENDURE_MODE_INPUT
-                        in_w = min(max_charge, max_charge)
-                        out_w = 0.0
-                        decision_reason = "manual_charge"
-
-                        # --------------------------------------------------
-                        # Output smoothing (anti saw-tooth)
-                        # --------------------------------------------------
-                        DISCHARGE_DEADBAND = 200.0   # W
-                        MIN_UPDATE_SECONDS = 35.0    # s
-
-                        last_out = self._persist.get("last_set_output_w")
-                        last_ts = self._persist.get("last_output_ts")
-                        now_ts = now.timestamp()
-
-                        if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
-                            if last_out is not None and last_ts is not None:
-                                # too small change → keep old value
-                                if abs(out_w - last_out) < DISCHARGE_DEADBAND:
-                                    out_w = float(last_out)
-
-                                # too fast update → keep old value
-                                elif (now_ts - float(last_ts)) < MIN_UPDATE_SECONDS:
-                                    out_w = float(last_out)
-                                else:
-                                    self._persist["last_output_ts"] = now_ts
-                            else:
-                                self._persist["last_output_ts"] = now_ts
-                        
-                        # >>> MANUAL CHARGE IS ABSOLUTE <<<
-                        await self._set_ac_mode(ac_mode)
-                        await self._set_input_limit(in_w)
-                        await self._set_output_limit(out_w)
-
-                        await self._save()
-
-                        return {
-                            "status": status,
-                            "ai_status": AI_STATUS_MANUAL,
-                            "recommendation": recommendation,
-                            "debug": "OK",
-                            "details": {},
-                            "decision_reason": decision_reason,
-                        }    
-
-                    elif manual_action == MANUAL_DISCHARGE:
-                        recommendation = RECO_DISCHARGE
+                # expensive / very expensive overlays (only while idle or discharging; never fight PV stop)
+                if price_now is not None and soc > soc_min and power_state != "charging":
+                    if price_now >= very_expensive and power_state != "charging":
+                        # force discharge up to deficit, but never above max_discharge
                         ac_mode = ZENDURE_MODE_OUTPUT
+                        recommendation = RECO_DISCHARGE
+                        out_w = min(float(max_discharge), max(float(deficit_raw), 0.0))
                         in_w = 0.0
-                        raw_target = deficit if deficit is not None else 0.0
-
-                        prev = float(self._persist.get("discharge_target_w") or 0.0)
-
-                        MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
-
-                        if raw_target > prev:
-                            target = min(prev + MAX_STEP, raw_target)
+                        decision_reason = "very_expensive_force_discharge"
+                        self._persist["power_state"] = "discharging"
+                    elif price_now >= expensive and power_state == "idle" and deficit_raw > 0.0:
+                        ac_mode = ZENDURE_MODE_OUTPUT
+                        recommendation = RECO_DISCHARGE
+                        prev_target = float(self._persist.get("discharge_target_w") or 0.0)
+                        raw_target = float(deficit_raw)
+                        MAX_STEP_UP = 250.0
+                        if raw_target > prev_target:
+                            target = min(prev_target + MAX_STEP_UP, raw_target)
                         else:
-                            target = max(prev - MAX_STEP, raw_target)
-
-                        self._persist["discharge_target_w"] = target
-
-                        out_w = min(max_discharge, max(target, 0.0))
-                        
-                        decision_reason = "manual_discharge"
-
-                else:
-                    is_summer = ai_mode == AI_MODE_SUMMER
-                    is_winter = ai_mode == AI_MODE_WINTER
-
-                    # planning (automatic only)
-                    planning_applied = False
-                    if ai_mode == AI_MODE_AUTOMATIC:
-                        self._persist["planning_checked"] = True
-                        planning = self._evaluate_price_planning(
-                            soc=soc,
-                            soc_max=float(soc_max),
-                            price_now=price_now,
-                            expensive=float(expensive),
-                            very_expensive=float(very_expensive),
-                            profit_margin_pct=float(profit_margin_pct),
-                            max_charge=float(max_charge),
-                            surplus_w=surplus,
-                            ai_mode=ai_mode,
-                        )
-                        self._persist["planning_status"] = planning.get("status")
-                        self._persist["planning_blocked_by"] = planning.get("blocked_by")
-                        self._persist["planning_reason"] = planning.get("reason")
-                        self._persist["planning_next_peak"] = planning.get("next_peak")
-                        self._persist["planning_active"] = planning.get("action") == "charge"
-
-                        # In main logic, before applying planning charge
-                        if planning.get("action") == "charge":
-                            planning_applied = True
-                            ai_status = AI_STATUS_STANDBY
-                            recommendation = RECO_CHARGE
-                            ac_mode = ZENDURE_MODE_INPUT
-                            in_w = min(max_charge, float(planning.get("watts") or max_charge))
-                            out_w = 0.0
-                            decision_reason = str(planning.get("reason"))
-                            
-                    if not planning_applied:
-                        decision_reason = "automatic_idle"
-
-                        # VERY EXPENSIVE always has absolute priority
-                        if price_now is not None and price_now >= very_expensive and soc > (soc_min + 0.2):
-                            ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
-                            recommendation = RECO_DISCHARGE
-                            ac_mode = ZENDURE_MODE_OUTPUT
-                            in_w = 0.0
-
-                            needed_w = 0.0
-                            if deficit is not None and deficit > 0:
-                                needed_w = float(deficit)
-
-                            out_w = min(needed_w, 2400.0)
-                            decision_reason = "very_expensive_force_discharge_unlimited"
-                            
-                        # summer: cover deficit if possible
-                        elif is_summer and deficit is not None and deficit > 0 and soc > soc_min:
-                            if pv_stop_discharge:
-                                ai_status = AI_STATUS_CHARGE_SURPLUS
-                                recommendation = RECO_CHARGE
-                                ac_mode = ZENDURE_MODE_INPUT
-                                in_w = min(max_charge, float(surplus or 0.0))
-                                out_w = 0.0
-                                decision_reason = "pv_surplus_interrupt_discharge"
-                            else:
-                                ai_status = AI_STATUS_COVER_DEFICIT
-                                recommendation = RECO_DISCHARGE
-                                ac_mode = ZENDURE_MODE_OUTPUT
-                                in_w = 0.0
-                                raw_target = deficit if deficit is not None else 0.0
-
-                                prev = float(self._persist.get("discharge_target_w") or 0.0)
-
-                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
-
-                                if raw_target > prev:
-                                    target = min(prev + MAX_STEP, raw_target)
-                                else:
-                                    target = max(prev - MAX_STEP, raw_target)
-
-                                self._persist["discharge_target_w"] = target
-
-                                out_w = min(max_discharge, max(target, 0.0))
-                                decision_reason = "summer_cover_deficit"
-
-                        # PV surplus charge (ONLY if not discharging)
-                        elif (
-                            surplus is not None
-                            and surplus > 50
-                            and soc < soc_max
-                            and ac_mode != ZENDURE_MODE_OUTPUT
-                            and recommendation != RECO_DISCHARGE
-                        ):
-                            ai_status = AI_STATUS_CHARGE_SURPLUS
-                            recommendation = RECO_CHARGE
-                            ac_mode = ZENDURE_MODE_INPUT
-                            in_w = min(max_charge, float(surplus))
-                            out_w = 0.0
-                            decision_reason = "pv_surplus_charge"
-
-                        # winter: cover deficit if possible
-                        elif is_winter and deficit is not None and deficit > 0 and soc > soc_min:
-                            if pv_stop_discharge:
-                                ai_status = AI_STATUS_CHARGE_SURPLUS
-                                recommendation = RECO_CHARGE
-                                ac_mode = ZENDURE_MODE_INPUT
-                                in_w = min(max_charge, float(surplus or 0.0))
-                                out_w = 0.0
-                                decision_reason = "pv_surplus_interrupt_discharge"
-                            else:
-                                ai_status = AI_STATUS_COVER_DEFICIT
-                                recommendation = RECO_DISCHARGE
-                                ac_mode = ZENDURE_MODE_OUTPUT
-                                in_w = 0.0
-                                raw_target = deficit if deficit is not None else 0.0
-
-                                prev = float(self._persist.get("discharge_target_w") or 0.0)
-
-                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
-
-                                if raw_target > prev:
-                                    target = min(prev + MAX_STEP, raw_target)
-                                else:
-                                    target = max(prev - MAX_STEP, raw_target)
-
-                                self._persist["discharge_target_w"] = target
-
-                                out_w = min(max_discharge, max(target, 0.0))
-                                decision_reason = "cover_deficit"
-
-                        elif (
-                            price_now is not None
-                            and price_now >= expensive
-                            and price_now < very_expensive
-                            and soc > soc_min
-                        ):
-                            if pv_stop_discharge:
-                                ai_status = AI_STATUS_CHARGE_SURPLUS
-                                recommendation = RECO_CHARGE
-                                ac_mode = ZENDURE_MODE_INPUT
-                                in_w = min(max_charge, float(surplus or 0.0))
-                                out_w = 0.0
-                                decision_reason = "pv_surplus_interrupt_discharge"
-                            else:
-                                ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
-                                recommendation = RECO_DISCHARGE
-                                ac_mode = ZENDURE_MODE_OUTPUT
-                                in_w = 0.0
-                                raw_target = deficit if deficit is not None else 0.0
-
-                                prev = float(self._persist.get("discharge_target_w") or 0.0)
-
-                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
-
-                                if raw_target > prev:
-                                    target = min(prev + MAX_STEP, raw_target)
-                                else:
-                                    target = max(prev - MAX_STEP, raw_target)
-
-                                self._persist["discharge_target_w"] = target
-
-                                out_w = min(max_discharge, max(target, 0.0))
-                                decision_reason = "expensive_discharge"
-
-                            ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
-                            recommendation = RECO_DISCHARGE
-                            ac_mode = ZENDURE_MODE_OUTPUT
-                            in_w = 0.0
-                            # prefer slight feed-in over grid import
-                            raw_target = deficit if deficit is not None else 0.0
-
-                            prev = float(self._persist.get("discharge_target_w") or 0.0)
-
-                            MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
-
-                            if raw_target > prev:
-                                target = min(prev + MAX_STEP, raw_target)
-                            else:
-                                target = max(prev - MAX_STEP, raw_target)
-
-                            self._persist["discharge_target_w"] = target
-
-                            out_w = min(max_discharge, max(target, 0.0))
-                            decision_reason = "expensive_discharge"
-
-                        if recommendation == RECO_STANDBY:
-                            ai_status = AI_STATUS_STANDBY
-                            ac_mode = ZENDURE_MODE_INPUT
-                            in_w = 0.0
-                            out_w = 0.0
-                            decision_reason = "standby_no_condition_met"
+                            target = prev_target
+                        self._persist["discharge_target_w"] = float(target)
+                        out_w = min(float(max_discharge), max(float(target), 0.0))
+                        in_w = 0.0
+                        decision_reason = "expensive_discharge"
+                        self._persist["power_state"] = "discharging"
 
             # enforce SoC-min on discharge
             if ac_mode == ZENDURE_MODE_OUTPUT and soc <= soc_min:
@@ -1034,6 +666,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
                 if recommendation == RECO_DISCHARGE:
                     recommendation = RECO_STANDBY
+                decision_reason = "soc_min_enforced"
 
             # Apply hardware setpoints
             if ac_mode == ZENDURE_MODE_OUTPUT:
@@ -1046,14 +679,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._set_output_limit(out_w)
 
             # --------------------------------------------------
-            # FINAL AI STATUS (derived from actual action)
+            # FINAL AI STATUS (derived from action)
             # --------------------------------------------------
-            if ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
-                if decision_reason == "pv_surplus_charge":
-                    ai_status = AI_STATUS_CHARGE_SURPLUS
-                else:
-                    ai_status = AI_STATUS_STANDBY
-
+            if ai_mode == AI_MODE_MANUAL:
+                ai_status = AI_STATUS_MANUAL
+            elif self._persist.get("emergency_active"):
+                ai_status = AI_STATUS_EMERGENCY_CHARGE
+            elif ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
+                ai_status = AI_STATUS_CHARGE_SURPLUS
             elif ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
                 if decision_reason.startswith("very_expensive"):
                     ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
@@ -1061,25 +694,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
                 else:
                     ai_status = AI_STATUS_COVER_DEFICIT
-
             else:
                 ai_status = AI_STATUS_STANDBY
 
             # --- house load calculation (total house consumption) ---
-            # Use RAW grid values (before any anti-oscillation logic),
-            # and add battery discharge estimate (out_w) because it does NOT appear in grid import.
-            grid_import = float(deficit_raw) if deficit_raw is not None and deficit_raw > 0 else 0.0
-            grid_export = float(surplus_raw) if surplus_raw is not None and surplus_raw > 0 else 0.0
-            pv_w = float(pv) if pv is not None else 0.0
+            grid_import = float(deficit_raw) if deficit_raw > 0.0 else 0.0
+            grid_export = float(surplus_raw) if surplus_raw > 0.0 else 0.0
+            pv_w = float(pv)
 
             house_load = pv_w + grid_import - grid_export
             house_load = max(house_load, 0.0)
-
-            house_load = _ema("ema_house_load", house_load) or house_load
+            house_load = _ema("ema_house_load", house_load)
 
             # Analytics
             last_ts = self._persist.get("last_ts")
-
             dt_s = 0.0
             if last_ts:
                 try:
@@ -1089,67 +717,56 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception:
                     dt_s = 0.0
 
-            in_w = float(in_w)
-            out_w = float(out_w)
+            in_w_f = float(in_w)
+            out_w_f = float(out_w)
 
             charged_kwh = float(self._persist.get("charged_kwh") or 0.0)
             discharged_kwh = float(self._persist.get("discharged_kwh") or 0.0)
             profit_eur = float(self._persist.get("profit_eur") or 0.0)
 
-            # --- Trading analytics (exclude emergency/manual charges) ---
             avg_charge_price = self._persist.get("trade_avg_charge_price")
             trade_charged_kwh = float(self._persist.get("trade_charged_kwh") or 0.0)
             prev_soc = self._persist.get("prev_soc")
 
-            # Reset trading average when battery reaches SoC-Min by discharge (cycle finished)
             SOC_EPS = 0.2
             if (
                 prev_soc is not None
                 and float(prev_soc) > float(soc_min) + SOC_EPS
                 and float(soc) <= float(soc_min) + SOC_EPS
                 and ac_mode == ZENDURE_MODE_OUTPUT
-                and out_w > 0
+                and out_w_f > 0.0
             ):
                 avg_charge_price = None
                 trade_charged_kwh = 0.0
 
-            if ac_mode == ZENDURE_MODE_INPUT and in_w > 0:
-                e_kwh = (in_w * dt_s) / 3600000.0
+            if ac_mode == ZENDURE_MODE_INPUT and in_w_f > 0.0:
+                e_kwh = (in_w_f * dt_s) / 3600000.0
                 charged_kwh += e_kwh
 
-                # PV-Laden zählt als "0"
-                if decision_reason == "pv_surplus_charge":
-                    c_price = 0.0
-                else:
-                    c_price = price_now
-
-                # Trading-Ladungen: nur normale CHARGE (nicht Notladung, nicht manuell)
+                c_price = price_now
                 is_trading_charge = (
                     recommendation == RECO_CHARGE
                     and ai_mode != AI_MODE_MANUAL
                     and decision_reason not in ("emergency_latched_charge", "manual_charge")
                 )
-
                 if is_trading_charge and c_price is not None:
                     trade_charged_kwh += e_kwh
                     if avg_charge_price is None:
                         avg_charge_price = float(c_price)
                     else:
                         prev_e = max(trade_charged_kwh - e_kwh, 0.0)
-                        avg_charge_price = (
-                            (float(avg_charge_price) * prev_e) + (float(c_price) * e_kwh)
-                        ) / max(trade_charged_kwh, 1e-9)
+                        avg_charge_price = ((float(avg_charge_price) * prev_e) + (float(c_price) * e_kwh)) / max(
+                            trade_charged_kwh, 1e-9
+                        )
 
-            if ac_mode == ZENDURE_MODE_OUTPUT and out_w > 0:
-                e_kwh = (out_w * dt_s) / 3600000.0
+            if ac_mode == ZENDURE_MODE_OUTPUT and out_w_f > 0.0:
+                e_kwh = (out_w_f * dt_s) / 3600000.0
                 discharged_kwh += e_kwh
-
                 if price_now is not None and avg_charge_price is not None:
                     delta = float(price_now) - float(avg_charge_price)
                     if delta > 0:
                         profit_eur += e_kwh * delta
 
-            # Persist trading analytics + expose avg_charge_price as trading-only average
             self._persist["trade_avg_charge_price"] = avg_charge_price
             self._persist["trade_charged_kwh"] = trade_charged_kwh
             self._persist["prev_soc"] = float(soc)
@@ -1164,9 +781,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             details = {
                 "soc": soc,
-                "pv_w": pv,
-                "surplus": surplus,
-                "deficit": deficit,
+                "pv_w": pv_w,
+                "surplus": float(surplus),
+                "deficit": float(deficit_raw),
                 "house_load": int(round(house_load, 0)),
                 "price_now": price_now,
                 "expensive_threshold": expensive,
@@ -1174,6 +791,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "emergency_soc": emergency_soc,
                 "emergency_charge_w": emergency_w,
                 "emergency_active": bool(self._persist.get("emergency_active")),
+                "power_state": str(self._persist.get("power_state") or "idle"),
 
                 "planning_checked": bool(self._persist.get("planning_checked")),
                 "planning_status": self._persist.get("planning_status"),
@@ -1187,8 +805,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "max_discharge": max_discharge,
 
                 "set_mode": ac_mode,
-                "set_input_w": int(round(in_w, 0)),
-                "set_output_w": int(round(out_w, 0)),
+                "set_input_w": int(round(in_w_f, 0)),
+                "set_output_w": int(round(out_w_f, 0)),
 
                 "avg_charge_price": avg_charge_price,
                 "charged_kwh": charged_kwh,
@@ -1199,13 +817,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 "ai_mode": ai_mode,
                 "manual_action": manual_action,
+                "decision_reason": decision_reason,
             }
 
             return {
                 "status": status,
                 "ai_status": ai_status,
                 "recommendation": recommendation,
-                "debug": "OK" if status == STATUS_OK else status.upper(),
+                "debug": "OK" if status == STATUS_OK else str(status).upper(),
                 "details": details,
                 "decision_reason": decision_reason,
             }
