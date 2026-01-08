@@ -413,6 +413,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             now = dt_util.utcnow()
 
+            # --------------------------------------------------
+            # SAFE DEFAULTS (prevent unavailable entities)
+            # --------------------------------------------------
+            house_load = 0.0
+            surplus = 0.0
+            deficit_raw = 0.0
+            pv_w = 0.0
+            price_now = None
+
             soc = _to_float(self._state(self.entities.soc), None)
             pv = _to_float(self._state(self.entities.pv), None)
 
@@ -467,7 +476,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             house_load_raw = max(house_load_raw, 0.0)
 
             # Glätten → verhindert Sägezahn
-            house_load = _ema("ema_house_load", house_load_raw)
+            house_load = _ema("ema_house_load", house_load_raw) or house_load_raw
 
             # --------------------------------------------------
             # EMA smoothing (surplus only)
