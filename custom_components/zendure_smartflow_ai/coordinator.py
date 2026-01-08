@@ -553,6 +553,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             price_now = self._get_price_now()
             
             # keep raw grid values for house_load calculation (before any logic modifies them)
+            if deficit is not None:
+                deficit = float(deficit)
+            if surplus is not None:
+                surplus = float(surplus)
+
             deficit_raw = deficit
             surplus_raw = surplus
 
