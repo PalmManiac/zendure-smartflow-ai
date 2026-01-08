@@ -611,7 +611,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._persist["pv_clear_cnt"] = 0
 
             pv_stop_discharge = self._persist["pv_surplus_cnt"] >= PV_STOP_N
-            pv_allow_discharge = self._persist["pv_clear_cnt"] >= PV_CLEAR_N
             
             # --------------------------------------------------
             # Ignore battery feed-in as PV surplus during discharge logic
@@ -693,15 +692,21 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 if deficit_raw is not None and deficit_raw > 80 and soc > soc_min:
                     self._persist["power_state"] = "discharging"
+                    power_state = "discharging"
                     decision_reason = "state_enter_discharge"
+                    goto_apply = False  # nächste Runde regelt
+                    # NICHT apply, sondern raus
 
                 elif surplus is not None and surplus > 80 and soc < soc_max:
                     self._persist["power_state"] = "charging"
+                    power_state = "charging"
                     decision_reason = "state_enter_charge"
+                    goto_apply = False
 
                 else:
-                    ac_mode = ZENDURE_MODE_INPUT
+                    ai_status = AI_STATUS_STANDBY
                     recommendation = RECO_STANDBY
+                    ac_mode = ZENDURE_MODE_INPUT
                     in_w = 0.0
                     out_w = 0.0
                     decision_reason = "state_idle"
