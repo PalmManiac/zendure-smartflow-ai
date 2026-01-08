@@ -654,7 +654,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_COVER_DEFICIT
                     in_w = 0.0
 
-                    raw_target = deficit_raw if deficit_raw and deficit_raw > 0 else prev
+                    raw_target = deficit_raw if deficit_raw is not None and deficit_raw > 0 else prev
                     prev = float(self._persist.get("discharge_target_w") or 0.0)
 
                     MAX_STEP_UP = 200.0   # darf schneller hoch
@@ -699,7 +699,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     goto_apply = False  # nächste Runde regelt
                     # NICHT apply, sondern raus
 
-                elif surplus is not None and surplus > 80 and soc < soc_max:
+                elif surplus is not None and float(surplus) > 80 and soc < soc_max:
                     self._persist["power_state"] = "charging"
                     power_state = "charging"
                     decision_reason = "state_enter_charge"
