@@ -454,6 +454,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             surplus_raw = float(surplus_raw) if surplus_raw is not None else 0.0
 
             # --------------------------------------------------
+            # HOUSE LOAD (EARLY, STABLE, SINGLE SOURCE OF TRUTH)
+            # --------------------------------------------------
+            pv_w = float(pv)
+
+            # Grid-Import/Export rein physikalisch
+            grid_import = deficit_raw if deficit_raw > 0.0 else 0.0
+            grid_export = surplus_raw if surplus_raw > 0.0 else 0.0
+
+            # Hauslast = was das Haus wirklich verbraucht
+            house_load_raw = pv_w + grid_import - grid_export
+            house_load_raw = max(house_load_raw, 0.0)
+
+            # Glätten → verhindert Sägezahn
+            house_load = _ema("ema_house_load", house_load_raw)
+
+            # --------------------------------------------------
             # EMA smoothing (surplus only)
             # --------------------------------------------------
             EMA_TAU_S = 45.0
@@ -608,7 +624,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                     prev_target = float(self._persist.get("discharge_target_w") or 0.0)
                     # Ziel ist die HAUSLAST, nicht der Grid-Import
-                    house_target = house_load
+                    house_target = house_load + prev_target
 
                     # Sicherheit: nicht über max_discharge
                     raw_target = min(house_target, max_discharge)
@@ -701,15 +717,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ai_status = AI_STATUS_COVER_DEFICIT
             else:
                 ai_status = AI_STATUS_STANDBY
-
-            # --- house load calculation (total house consumption) ---
-            grid_import = float(deficit_raw) if deficit_raw > 0.0 else 0.0
-            grid_export = float(surplus_raw) if surplus_raw > 0.0 else 0.0
-            pv_w = float(pv)
-
-            house_load = pv_w + grid_import - grid_export
-            house_load = max(house_load, 0.0)
-            house_load = _ema("ema_house_load", house_load)
 
             # Analytics
             last_ts = self._persist.get("last_ts")
