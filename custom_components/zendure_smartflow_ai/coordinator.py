@@ -174,6 +174,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "discharged_kwh": 0.0,
             "profit_eur": 0.0,
             "last_ts": None,
+
+            # --- smoothing / EMA ---
+            "ema_deficit": None,
+            "ema_surplus": None,
+            "ema_house_load": None,
+            "ema_last_ts": None,
         }
 
         super().__init__(
@@ -542,6 +548,40 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             deficit, surplus = self._get_grid()
             price_now = self._get_price_now()
+            
+            # --------------------------------------------------
+            # EMA smoothing to avoid sawtooth discharge
+            # --------------------------------------------------
+            EMA_TAU_S = 45.0  # seconds (higher = smoother)
+            now_ts = now.timestamp()
+
+            last_ts = self._persist.get("ema_last_ts")
+            if last_ts is None:
+                dt = None
+            else:
+                dt = max(now_ts - float(last_ts), 0.0)
+
+            # dynamic alpha (stable with variable update interval)
+            if dt is None or dt <= 0:
+                alpha = 1.0
+            else:
+                alpha = min(dt / (EMA_TAU_S + dt), 1.0)
+
+            def _ema(key: str, value: float | None) -> float | None:
+                if value is None:
+                    return None
+                prev = self._persist.get(key)
+                if prev is None:
+                    self._persist[key] = float(value)
+                    return float(value)
+                v = (1.0 - alpha) * float(prev) + alpha * float(value)
+                self._persist[key] = float(v)
+                return float(v)
+
+            deficit = _ema("ema_deficit", deficit)
+            surplus = _ema("ema_surplus", surplus)
+
+            self._persist["ema_last_ts"] = now_ts
 
             # --------------------------------------------------
             # PV surplus hysteresis (stop discharge safely)
@@ -630,8 +670,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         # --------------------------------------------------
                         # Output smoothing (anti saw-tooth)
                         # --------------------------------------------------
-                        DISCHARGE_DEADBAND = 100.0   # W
-                        MIN_UPDATE_SECONDS = 20.0    # s
+                        DISCHARGE_DEADBAND = 200.0   # W
+                        MIN_UPDATE_SECONDS = 35.0    # s
 
                         last_out = self._persist.get("last_set_output_w")
                         last_ts = self._persist.get("last_output_ts")
@@ -876,6 +916,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 house_load += float(deficit)
 
             house_load = max(house_load, 0.0)
+            house_load = _ema("ema_house_load", house_load) or house_load
 
             # Analytics
             last_ts = self._persist.get("last_ts")
