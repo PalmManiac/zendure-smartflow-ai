@@ -175,6 +175,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "discharge_target_w": 0.0,
             "profit_eur": 0.0,
             "last_ts": None,
+            "power_state": "idle",   # idle | discharging | charging
 
             # --- smoothing / EMA ---
             "ema_deficit": None,
@@ -554,6 +555,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             deficit_raw = deficit
             surplus_raw = surplus
 
+            power_state = self._persist.get("power_state", "idle")
+            goto_apply = False
+
             # --------------------------------------------------
             # EMA smoothing to avoid sawtooth discharge
             # --------------------------------------------------
@@ -626,6 +630,100 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist["emergency_active"] = True
             if self._persist.get("emergency_active") and soc >= soc_min:
                 self._persist["emergency_active"] = False
+            
+            # ==================================================
+            # HARD POWER STATE MACHINE (NO OSCILLATION)
+            # ==================================================
+
+            # ---------- DISCHARGING ----------
+            if power_state == "discharging":
+
+                # EXIT CONDITIONS
+                if soc <= soc_min:
+                    self._persist["power_state"] = "idle"
+                    decision_reason = "state_exit_soc_min"
+
+                elif pv_stop_discharge:
+                    self._persist["power_state"] = "charging"
+                    decision_reason = "state_exit_pv_surplus"
+
+                else:
+                    # STABLE DISCHARGE REGULATION
+                    ac_mode = ZENDURE_MODE_OUTPUT
+                    recommendation = RECO_DISCHARGE
+                    ai_status = AI_STATUS_COVER_DEFICIT
+                    in_w = 0.0
+
+                    raw_target = deficit_raw if deficit_raw and deficit_raw > 0 else self._persist.get("discharge_target_w", 0.0)
+                    prev = float(self._persist.get("discharge_target_w") or 0.0)
+
+                    MAX_STEP = 150.0  # bewusst ruhig
+
+                    if raw_target > prev:
+                        target = min(prev + MAX_STEP, raw_target)
+                    else:
+                        target = max(prev - MAX_STEP, raw_target)
+
+                    self._persist["discharge_target_w"] = target
+                    out_w = min(max_discharge, max(target, 0.0))
+
+                    decision_reason = "state_discharging"
+                    goto_apply = True
+
+
+            # ---------- CHARGING ----------
+            elif power_state == "charging":
+
+                if soc >= soc_max or not surplus:
+                    self._persist["power_state"] = "idle"
+                    decision_reason = "state_charge_done"
+
+                else:
+                    ac_mode = ZENDURE_MODE_INPUT
+                    recommendation = RECO_CHARGE
+                    ai_status = AI_STATUS_CHARGE_SURPLUS
+                    in_w = min(max_charge, float(surplus))
+                    out_w = 0.0
+                    decision_reason = "state_charging"
+                    goto_apply = True
+
+
+            # ---------- IDLE (DECISION ONLY) ----------
+            elif power_state == "idle":
+
+                if deficit_raw is not None and deficit_raw > 80 and soc > soc_min:
+                    self._persist["power_state"] = "discharging"
+                    decision_reason = "state_enter_discharge"
+
+                elif surplus is not None and surplus > 80 and soc < soc_max:
+                    self._persist["power_state"] = "charging"
+                    decision_reason = "state_enter_charge"
+
+                else:
+                    ac_mode = ZENDURE_MODE_INPUT
+                    recommendation = RECO_STANDBY
+                    in_w = 0.0
+                    out_w = 0.0
+                    decision_reason = "state_idle"
+                    goto_apply = True
+
+            if goto_apply:
+                await self._set_ac_mode(ac_mode)
+                await self._set_input_limit(in_w)
+                await self._set_output_limit(out_w)
+                await self._save()
+
+                return {
+                    "status": STATUS_OK,
+                    "ai_status": ai_status,
+                    "recommendation": recommendation,
+                    "debug": "STATE_MACHINE",
+                    "details": {
+                        "power_state": self._persist.get("power_state"),
+                        "decision_reason": decision_reason,
+                    },
+                    "decision_reason": decision_reason,
+                }
 
             status = STATUS_OK
             ai_status = AI_STATUS_STANDBY
