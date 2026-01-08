@@ -691,7 +691,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     decision_reason = "state_charging"
                     goto_apply = True
 
-
             # ---------- IDLE (DECISION ONLY) ----------
             elif power_state == "idle":
 
@@ -716,6 +715,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     out_w = 0.0
                     decision_reason = "state_idle"
                     goto_apply = True
+
+            state_machine_active = power_state in ("discharging", "charging")
 
             if goto_apply:
                 await self._set_ac_mode(ac_mode)
@@ -749,6 +750,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 out_w = 0.0
                 decision_reason = "emergency_latched_charge"
 
+        else:
+            if state_machine_active:
+                # STATE MACHINE IST AKTIV → KEINE NEUE ENTSCHEIDUNG
+                pass
             else:
                 # Manual mode
                 if ai_mode == AI_MODE_MANUAL:
@@ -832,13 +837,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     is_summer = ai_mode == AI_MODE_SUMMER
                     is_winter = ai_mode == AI_MODE_WINTER
-
-                    # --------------------------------------------------
-                    # FIX 2: Block PV logic during active discharge
-                    # Prevent charge/discharge oscillation
-                    # --------------------------------------------------
-                    if recommendation == RECO_DISCHARGE or ac_mode == ZENDURE_MODE_OUTPUT:
-                        surplus = None
 
                     # planning (automatic only)
                     planning_applied = False
