@@ -673,8 +673,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
                             # prefer slight feed-in over grid import
-                             target = deficit if deficit is not None else max_discharge
-                             out_w = min(max_discharge, max(target + 50.0, 0.0))
+                            target = deficit if deficit is not None else max_discharge
+                            out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "summer_cover_deficit"
 
                         # PV surplus charge
@@ -711,8 +711,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             ac_mode = ZENDURE_MODE_OUTPUT
                             in_w = 0.0
                             # prefer slight feed-in over grid import
-                             target = deficit if deficit is not None else max_discharge
-                             out_w = min(max_discharge, max(target + 50.0, 0.0))
+                            target = deficit if deficit is not None else max_discharge
+                            out_w = min(max_discharge, max(target + 50.0, 0.0))
                             decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
