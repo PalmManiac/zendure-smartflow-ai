@@ -544,15 +544,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 			# If price logic wants discharge, any feed-in is NOT PV
 			# --------------------------------------------------
 			if surplus is not None and surplus > 0:
-			    if (
-			        price_now is not None
-			        and (
-			            price_now >= expensive
-			            or price_now >= very_expensive
-			        )
-			        and soc > soc_min
-			    ):
-			        surplus = None
+                if (
+                    price_now is not None
+                    and (
+                        price_now >= expensive
+                        or price_now >= very_expensive
+                    )
+                    and soc > soc_min
+                ):
+                    surplus = None
             
             # Emergency latch
             if soc <= emergency_soc:
