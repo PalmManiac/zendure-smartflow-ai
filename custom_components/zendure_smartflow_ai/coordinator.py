@@ -723,18 +723,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self._set_output_limit(out_w)
                 await self._save()
 
-                return {
-                    "status": STATUS_OK,
-                    "ai_status": ai_status,
-                    "recommendation": recommendation,
-                    "debug": "STATE_MACHINE",
-                    "details": {
-                        "power_state": self._persist.get("power_state"),
-                        "decision_reason": decision_reason,
-                    },
-                    "decision_reason": decision_reason,
-                }
-
             status = STATUS_OK
             ai_status = AI_STATUS_STANDBY
             recommendation = RECO_STANDBY
