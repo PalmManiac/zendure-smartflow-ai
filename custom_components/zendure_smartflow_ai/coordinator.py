@@ -540,21 +540,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             price_now = self._get_price_now()
             
 			# --------------------------------------------------
-            # FIX 3: Ignore "surplus" caused by battery discharge
-            # Battery feed-in is NOT PV surplus
-            # --------------------------------------------------
-            if surplus is not None and surplus > 0:
-                # If we are discharging (or intend to), surplus is battery feed-in
-                if (
-                    ac_mode == ZENDURE_MODE_OUTPUT
-                    or recommendation == RECO_DISCHARGE
-                    or (
-                        price_now is not None
-                        and price_now >= expensive
-                        and soc > soc_min
-                    )
-                ):
-                    surplus = None
+			# FIX 3: Ignore battery feed-in as PV surplus
+			# If price logic wants discharge, any feed-in is NOT PV
+			# --------------------------------------------------
+			if surplus is not None and surplus > 0:
+			    if (
+			        price_now is not None
+			        and (
+			            price_now >= expensive
+			            or price_now >= very_expensive
+			        )
+			        and soc > soc_min
+			    ):
+			        surplus = None
             
             # Emergency latch
             if soc <= emergency_soc:
