@@ -808,18 +808,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                                 in_w = 0.0
                                 raw_target = deficit if deficit is not None else 0.0
 
-                                 prev = float(self._persist.get("discharge_target_w") or 0.0)
+                                prev = float(self._persist.get("discharge_target_w") or 0.0)
 
-                                 MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+                                MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
 
-                                 if raw_target > prev:
-                                     target = min(prev + MAX_STEP, raw_target)
-                                 else:
-                                     target = max(prev - MAX_STEP, raw_target)
+                                if raw_target > prev:
+                                    target = min(prev + MAX_STEP, raw_target)
+                                else:
+                                    target = max(prev - MAX_STEP, raw_target)
 
-                                 self._persist["discharge_target_w"] = target
+                                self._persist["discharge_target_w"] = target
 
-                                 out_w = min(max_discharge, max(target, 0.0))
+                                out_w = min(max_discharge, max(target, 0.0))
                                 decision_reason = "summer_cover_deficit"
 
                         # PV surplus charge (ONLY if not discharging)
@@ -908,18 +908,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                             # prefer slight feed-in over grid import
                             raw_target = deficit if deficit is not None else 0.0
 
-                             prev = float(self._persist.get("discharge_target_w") or 0.0)
+                            prev = float(self._persist.get("discharge_target_w") or 0.0)
 
-                             MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
+                            MAX_STEP = 250.0  # W pro Update (sehr gut für 10s)
 
-                             if raw_target > prev:
-                                 target = min(prev + MAX_STEP, raw_target)
-                             else:
-                                 target = max(prev - MAX_STEP, raw_target)
+                            if raw_target > prev:
+                                target = min(prev + MAX_STEP, raw_target)
+                            else:
+                                target = max(prev - MAX_STEP, raw_target)
 
-                             self._persist["discharge_target_w"] = target
+                            self._persist["discharge_target_w"] = target
 
-                             out_w = min(max_discharge, max(target, 0.0))
+                            out_w = min(max_discharge, max(target, 0.0))
                             decision_reason = "expensive_discharge"
 
                         if recommendation == RECO_STANDBY:
