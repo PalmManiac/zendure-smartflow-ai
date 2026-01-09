@@ -625,16 +625,23 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 # enter/keep states
                 if power_state == "idle":
-                    if deficit_raw > 80.0 and soc > soc_min:
+                    if house_load > 150.0 and deficit_raw > 80.0 and soc > soc_min:
                         power_state = "discharging"
                         self._persist["power_state"] = "discharging"
                         decision_reason = "state_enter_discharge"
+
                     elif surplus > 80.0 and soc < soc_max:
                         power_state = "charging"
                         self._persist["power_state"] = "charging"
                         decision_reason = "state_enter_charge"
+
                     else:
                         decision_reason = "state_idle"
+
+                    # 🔒 FIX B – HARTE SPERRE GEGEN UNGEWOLLTE ENTLADUNG
+                    if house_load < 120.0:
+                        power_state = "idle"
+                        self._persist["power_state"] = "idle"
 
                 if power_state == "discharging":
                     ac_mode = ZENDURE_MODE_OUTPUT
