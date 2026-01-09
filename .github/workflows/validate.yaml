@@ -1,19 +1,26 @@
-name: Validate
+name: Validate with hassfest and HACS 
 
 on:
   push:
+    branches: [ main ] 
   pull_request:
-  schedule:
-    - cron: "0 0 * * *"
-  workflow_dispatch:
-
-permissions: {}
+    branches: [ main ]
 
 jobs:
-  validate-hacs:
-    runs-on: "ubuntu-latest"
+  validate:
+    runs-on: ubuntu-latest
     steps:
-      - name: HACS validation
-        uses: "hacs/action@main"
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. HACS-Validierung
+      # Prüft hacs.json und Struktur
+      - name: Run HACS validation
+        uses: hacs/action@main
         with:
-          category: "integration"
+          category: integration 
+
+      # 2. Hassfest-Prüfungen
+      # NEU: Verwendet die offizielle HA-Action, um Installationsfehler zu vermeiden.
+      - name: Run hassfest checks
+        uses: home-assistant/actions/hassfest@master 
