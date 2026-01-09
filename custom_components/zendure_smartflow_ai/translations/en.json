@@ -1,22 +1,22 @@
 {
+  "title": "Zendure SmartFlow AI",
+
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Zendure SmartFlow AI",
+        "description": "Connect your Zendure and energy sensors for intelligent and stable battery control."
+      }
+    }
+  },
+
   "entity": {
     "select": {
       "ai_mode": {
-        "name": "Operating mode",
-        "state": {
-          "automatic": "Automatic",
-          "summer": "Summer",
-          "winter": "Winter",
-          "manual": "Manual"
-        }
+        "name": "Operating mode"
       },
       "manual_action": {
-        "name": "Manual action",
-        "state": {
-          "standby": "Standby",
-          "charge": "Charge",
-          "discharge": "Discharge"
-        }
+        "name": "Manual action"
       }
     },
 
@@ -28,7 +28,7 @@
       "emergency_charge": { "name": "Emergency charge power" },
       "emergency_soc": { "name": "Emergency charge below SoC" },
       "very_expensive_threshold": { "name": "Very expensive threshold" },
-      "profit_margin_pct": { "name": "Profit margin" }
+      "profit_margin_pct": { "name": "Profit margin (%)" }
     },
 
     "sensor": {
@@ -46,10 +46,10 @@
         "name": "AI status",
         "state": {
           "standby": "Standby",
-          "charge_surplus": "Charging from PV surplus",
-          "cover_deficit": "Covering grid consumption from battery",
-          "expensive_discharge": "Discharging due to high electricity price",
-          "very_expensive_force": "Maximum discharge due to extreme price peak",
+          "charge_surplus": "Charging (PV surplus)",
+          "cover_deficit": "Discharging (covering house load)",
+          "expensive_discharge": "Discharging (high electricity price)",
+          "very_expensive_force": "Forced discharge (extreme price peak)",
           "emergency_charge": "Emergency charging active",
           "manual": "Manual mode"
         }
@@ -61,24 +61,33 @@
           "standby": "No action",
           "charge": "Charge",
           "discharge": "Discharge",
-          "emergency_charge": "Emergency charge"
+          "emergency": "Emergency charge"
         }
       },
 
       "decision_reason": {
         "name": "Decision reason",
         "state": {
-          "idle": "Idle (no action required)",
-          "emergency_latched_charge": "Emergency charge active (latched)",
-          "manual_mode": "Manual mode active",
-          "manual_charge": "Manual charging",
-          "manual_discharge": "Manual discharging",
-          "summer_cover_deficit": "Summer mode: covering grid consumption",
+          "standby": "Standby",
+          "state_idle": "No demand detected",
+
+          "state_enter_discharge": "Discharging started (demand detected)",
+          "state_discharging": "Discharging active (covering house load)",
+          "state_enter_charge": "Charging started (surplus detected)",
+          "state_charging": "Charging active",
+
           "pv_surplus_charge": "Charging from PV surplus",
-          "very_expensive_force_discharge_unlimited": "Extreme price peak – unlimited discharge",
-          "expensive_discharge": "Discharge due to high price",
-          "planning_charge_now": "Planned charging active",
-          "standby_no_condition_met": "No rule condition met"
+
+          "expensive_discharge": "Discharging due to high electricity price",
+          "very_expensive_force_discharge": "Forced discharge due to extreme price peak",
+
+          "emergency_latched_charge": "Emergency charge active (latched)",
+          "soc_min_enforced": "Discharge stopped (SoC minimum reached)",
+
+          "manual_mode": "Manual mode active",
+          "manual_standby": "Manual standby",
+          "manual_charge": "Manual charging",
+          "manual_discharge": "Manual discharging"
         }
       },
 
@@ -86,29 +95,41 @@
         "name": "Price planning status",
         "state": {
           "not_checked": "Not checked yet",
-          "sensor_invalid": "Invalid sensor data",
           "planning_inactive_mode": "Planning inactive (mode)",
           "planning_blocked_soc_full": "Battery full – planning blocked",
-          "planning_blocked_pv_surplus": "PV surplus – planning blocked",
           "planning_no_price_now": "No current electricity price",
           "planning_no_price_data": "No price data available",
           "planning_no_peak_detected": "No relevant price peak detected",
           "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
           "planning_charge_now": "Price planning: charging allowed",
           "planning_last_chance": "Last chance before price peak",
-          "planning_peak_detected_insufficient_window": "Price peak detected, but window too short"
+          "planning_peak_detected_insufficient_window": "Price peak detected, but time window too short"
         }
       },
 
       "planning_active": { "name": "Price planning active" },
-      "planning_target_soc": { "name": "Price planning target SoC" },
+      "planning_target_soc": { "name": "Target SoC (price planning)" },
       "planning_reason": { "name": "Planning reason" },
 
       "ai_debug": { "name": "AI debug" },
       "house_load": { "name": "House load" },
       "price_now": { "name": "Current electricity price" },
       "avg_charge_price": { "name": "Average battery charge price" },
-      "profit_eur": { "name": "Profit / savings (total)" }
+      "profit_eur": { "name": "Savings / profit (total)" }
+    }
+  },
+
+  "state": {
+    "select.zendure_smartflow_ai.ai_mode": {
+      "automatic": "Automatic",
+      "summer": "Summer",
+      "winter": "Winter",
+      "manual": "Manual"
+    },
+    "select.zendure_smartflow_ai.manual_action": {
+      "standby": "Standby",
+      "charge": "Charge",
+      "discharge": "Discharge"
     }
   }
 }
