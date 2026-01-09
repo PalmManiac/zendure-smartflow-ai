@@ -506,6 +506,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             no_house_load = house_load < 120.0
 
             # --------------------------------------------------
+            # Winter-Erkennung: keine Hauslast-Entladung erlaubt
+            # --------------------------------------------------
+            is_winter_mode = (
+                ai_mode in (AI_MODE_WINTER, AI_MODE_AUTOMATIC)
+                and surplus < 50.0
+                and price_now is not None
+                and price_now < expensive
+            )
+
+            # --------------------------------------------------
             # PV surplus hysteresis (stop discharge safely)
             # --------------------------------------------------
             PV_STOP_W = 80.0
@@ -627,7 +637,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 # enter/keep states
                 if power_state == "idle":
-                    if house_load > 150.0 and deficit_raw > 80.0 and soc > soc_min:
+                    if (
+                        not is_winter_mode
+                        and house_load > 150.0
+                        and deficit_raw > 80.0
+                        and soc > soc_min
+                    ):
                         power_state = "discharging"
                         self._persist["power_state"] = "discharging"
                         decision_reason = "state_enter_discharge"
