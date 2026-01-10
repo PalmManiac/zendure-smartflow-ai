@@ -743,6 +743,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if ac_mode == ZENDURE_MODE_INPUT:
                 out_w = 0.0
 
+            # --- ZENDURE HARD REQUIREMENT ---
+            # Zendure akzeptiert AC-INPUT nur, wenn Output-Limit real auf 0 gesetzt ist
+            if ac_mode == ZENDURE_MODE_INPUT:
+                if self._persist.get("last_set_output_w", 0) != 0:
+                    await self._set_output_limit(0)
+                    _LOGGER.debug(
+                        "Zendure: forcing output_limit=0 before switching to AC INPUT"
+                    )
+
             # --- Zendure safety: Mode switch first ---
             await self._set_ac_mode(ac_mode)
 
