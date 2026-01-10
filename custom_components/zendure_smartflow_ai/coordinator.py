@@ -592,6 +592,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     ac_mode = ZENDURE_MODE_INPUT
                     in_w = float(max_charge)
                     out_w = 0.0
+                    self._persist["power_state"] = "charging"   # <<< FIX
                     recommendation = RECO_CHARGE
                     decision_reason = "manual_charge"
 
