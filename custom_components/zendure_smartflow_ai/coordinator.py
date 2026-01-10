@@ -743,9 +743,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if ac_mode == ZENDURE_MODE_INPUT:
                 out_w = 0.0
 
+            # --- Zendure safety: Mode switch first ---
             await self._set_ac_mode(ac_mode)
-            await self._set_input_limit(in_w)
-            await self._set_output_limit(out_w)
+
+            # Wenn gerade der Modus gewechselt wurde → KEINE Limits setzen
+            last_mode = self._persist.get("last_set_mode")
+            if last_mode != ac_mode:
+                _LOGGER.debug("Zendure: AC mode changed, skipping limits this cycle")
+            else:
+                await self._set_input_limit(in_w)
+                await self._set_output_limit(out_w)
 
             # --------------------------------------------------
             # FINAL EFFECTIVE STATE (authoritative for sensors)
