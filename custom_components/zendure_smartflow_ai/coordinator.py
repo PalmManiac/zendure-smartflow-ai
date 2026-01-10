@@ -228,8 +228,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _set_ac_mode(self, mode: str) -> None:
         """Set AC mode only when it changes (avoid service spam / HA lag)."""
         last = self._persist.get("last_set_mode")
-        if last == mode:
-            return
+        # 🔴 WICHTIG:
+        # Im manuellen Modus IMMER setzen, auch wenn der Modus gleich ist
+        if self.runtime_mode.get("ai_mode") != AI_MODE_MANUAL:
+            if last == mode:
+                return
         self._persist["last_set_mode"] = mode
         await self.hass.services.async_call(
             "select",
