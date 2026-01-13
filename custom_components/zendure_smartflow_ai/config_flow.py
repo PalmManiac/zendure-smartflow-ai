@@ -6,8 +6,6 @@ from homeassistant import config_entries
 from homeassistant.helpers import selector
 
 from .const import *
-from .options_flow import ZendureSmartFlowOptionsFlow
-
 
 class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
