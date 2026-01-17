@@ -38,19 +38,6 @@ PLANNING_STATUS_ENUMS = [
     "planning_last_chance",
 ]
 
-# NEW: next-action enums (V1.3.0)
-NEXT_ACTION_STATE_ENUMS = [
-    "none",
-    "planned_charge",
-    "planned_discharge",
-    "charging_active",
-    "discharging_active",
-    "manual_charge",
-    "manual_discharge",
-    "emergency_charge",
-]
-
-
 @dataclass(frozen=True, kw_only=True)
 class ZendureSensorEntityDescription(SensorEntityDescription):
     runtime_key: str
