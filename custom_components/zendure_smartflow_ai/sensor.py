@@ -37,6 +37,18 @@ PLANNING_STATUS_ENUMS = [
     "planning_last_chance",
 ]
 
+# NEW: next-action enums (V1.3.0)
+NEXT_ACTION_ENUMS = [
+    "none",
+    "planned_charge",
+    "planned_discharge",
+    "charging_active",
+    "discharging_active",
+    "manual_charge",
+    "manual_discharge",
+    "emergency_charge",
+]
+
 
 @dataclass(frozen=True, kw_only=True)
 class ZendureSensorEntityDescription(SensorEntityDescription):
@@ -44,7 +56,7 @@ class ZendureSensorEntityDescription(SensorEntityDescription):
 
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
-    # ENUM states -> translated via strings/* "state" mapping
+    # --- ENUM sensors (translated) ---
     ZendureSensorEntityDescription(
         key="status",
         translation_key="status",
@@ -70,7 +82,17 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         options=RECO_ENUMS,
     ),
 
-    # Debug remains raw (string)
+    # --- NEW SENSOR (V1.3.0) ---
+    ZendureSensorEntityDescription(
+        key="next_action",
+        translation_key="next_action",
+        runtime_key="next_action",
+        icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.ENUM,
+        options=NEXT_ACTION_ENUMS,
+    ),
+
+    # --- Debug / reasoning ---
     ZendureSensorEntityDescription(
         key="ai_debug",
         translation_key="ai_debug",
@@ -84,7 +106,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:head-question-outline",
     ),
 
-    # --- Planning transparency (V1.2) ---
+    # --- Planning transparency ---
     ZendureSensorEntityDescription(
         key="planning_status",
         translation_key="planning_status",
@@ -113,7 +135,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:text-long",
     ),
 
-    # Numeric sensors
+    # --- Numeric sensors ---
     ZendureSensorEntityDescription(
         key="house_load",
         translation_key="house_load",
@@ -145,15 +167,24 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
 )
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, add_entities: AddEntitiesCallback) -> None:
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    add_entities: AddEntitiesCallback,
+) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    add_entities([ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS])
+    add_entities(ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS)
 
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
 
-    def __init__(self, entry: ConfigEntry, coordinator, description: ZendureSensorEntityDescription) -> None:
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        coordinator,
+        description: ZendureSensorEntityDescription,
+    ) -> None:
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
@@ -177,7 +208,7 @@ class ZendureSmartFlowSensor(SensorEntity):
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        # values live in details for numeric/planning
+        # Values that live in details
         if key in (
             "house_load",
             "price_now",
@@ -187,6 +218,7 @@ class ZendureSmartFlowSensor(SensorEntity):
             "planning_active",
             "planning_target_soc",
             "planning_reason",
+            "next_action",  # NEW
         ):
             return details.get(key)
 
@@ -197,19 +229,23 @@ class ZendureSmartFlowSensor(SensorEntity):
         data = self.coordinator.data or {}
         details = data.get("details") or {}
 
-        # attach full details for debug-like sensors + planning
         if self.entity_description.key in (
+            "status",
             "ai_status",
             "recommendation",
-            "status",
+            "decision_reason",
             "ai_debug",
             "planning_status",
             "planning_active",
             "planning_target_soc",
             "planning_reason",
+            "next_action",  # NEW
         ):
             return details
+
         return None
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
+        self.async_on_remove(
+            self.coordinator.async_add_listener(self.async_write_ha_state)
+        )
