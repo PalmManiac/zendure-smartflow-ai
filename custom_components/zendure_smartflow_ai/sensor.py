@@ -182,9 +182,17 @@ async def async_setup_entry(
         if not d.key:
             raise RuntimeError(f"Sensor without key detected: {d}")
 
-    add_entities(
-        [ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS]
-    )
+    entities = []
+    for d in SENSORS:
+        if not d.key:
+            _LOGGER.error(
+                "Zendure SmartFlow AI: SensorEntityDescription ohne key entdeckt – wird übersprungen: %s",
+                d,
+            )
+            continue
+        entities.append(ZendureSmartFlowSensor(entry, coordinator, d))
+
+    add_entities(entities)
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
