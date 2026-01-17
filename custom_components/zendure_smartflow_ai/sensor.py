@@ -20,6 +20,7 @@ from .const import (
     STATUS_ENUMS,
     AI_STATUS_ENUMS,
     RECO_ENUMS,
+    NEXT_ACTION_STATE_ENUMS
 )
 
 PLANNING_STATUS_ENUMS = [
@@ -94,6 +95,8 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         translation_key="next_action_state",
         runtime_key="next_action_state",
         icon="mdi:clock-outline",
+        device_class=SensorDeviceClass.ENUM,
+        options=NEXT_ACTION_STATE_ENUMS
     ),
 
     # --- Debug / reasoning ---
@@ -208,10 +211,15 @@ class ZendureSmartFlowSensor(SensorEntity):
         self._entry = entry
         
         # 🔒 FIX: Prevent creation of sensor.…_none entities
-        if not description.translation_key:
-            self._attr_name = description.key
+        if not description.key:
+            raise ValueError(
+                f"ZendureSmartFlowSensor created without key: {description}"
+            )
 
-        self._attr_unique_id = f"{entry.entry_id}_{description.key}"
+        self._attr_unique_id = (
+            f"{DOMAIN}_{entry.entry_id}_{description.key}"
+        )
+        
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": INTEGRATION_NAME,
