@@ -133,7 +133,7 @@
     }
   },
 
-  "next_action": {
+  "next_action_state": {
     "name": "Prochaine action",
     "state": {
       "none": "Aucune action planifiée",
