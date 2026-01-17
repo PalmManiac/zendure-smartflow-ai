@@ -10,7 +10,7 @@ DOMAIN = "zendure_smartflow_ai"
 INTEGRATION_NAME = "Zendure SmartFlow AI"
 INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "Home Assistant Integration"
-INTEGRATION_VERSION = "1.3.0-Beta1"
+INTEGRATION_VERSION = "1.3.0-Beta2"
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -137,6 +137,17 @@ RECO_ENUMS = [
     RECO_CHARGE,
     RECO_DISCHARGE,
     RECO_EMERGENCY,
+]
+
+NEXT_ACTION_ENUMS = [
+    "none",
+    "planned_charge",
+    "planned_discharge",
+    "charging_active",
+    "discharging_active",
+    "manual_charge",
+    "manual_discharge",
+    "emergency_charge",
 ]
 
 # ==================================================
