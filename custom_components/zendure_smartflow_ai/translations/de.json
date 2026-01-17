@@ -131,7 +131,7 @@
       "manual_discharge": "Manuelles Entladen",
       "emergency_charge": "Notladung"
     }
-  }
+  },
 
   "state": {
     "select.zendure_smartflow_ai.ai_mode": {
