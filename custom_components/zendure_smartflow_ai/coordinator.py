@@ -908,6 +908,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "ai_mode": ai_mode,
                 "manual_action": manual_action,
                 "decision_reason": decision_reason,
+                details["next_action"] = "none"
             }
 
             return {
