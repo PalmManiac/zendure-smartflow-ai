@@ -94,8 +94,6 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         translation_key="next_action",
         runtime_key="next_action",
         icon="mdi:clock-outline",
-        device_class=SensorDeviceClass.ENUM,
-        options=NEXT_ACTION_ENUMS,
     ),
 
     # --- Debug / reasoning ---
