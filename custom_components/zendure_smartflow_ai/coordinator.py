@@ -777,6 +777,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 recommendation = RECO_STANDBY
                 decision_reason = "state_idle"
 
+            next_action = "none"
+            
             # --------------------------------------------------
             # FINAL AI STATUS (derived from EFFECTIVE action)
             # --------------------------------------------------
@@ -910,7 +912,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "decision_reason": decision_reason,
             }
             
-            details["next_action"] = "none"
+            details["next_action"] = next_action
             
             return {
                 "status": status,
