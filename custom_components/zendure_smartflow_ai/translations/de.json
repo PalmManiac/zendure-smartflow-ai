@@ -119,7 +119,7 @@
     }
   },
 
-  "next_action": {
+  "next_action_state": {
     "name": "Nächste Aktion",
     "state": {
       "none": "Keine Aktion geplant",
