@@ -172,7 +172,6 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
     ),
 )
 
-
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -186,8 +185,7 @@ async def async_setup_entry(
             raise RuntimeError(f"Sensor without key detected: {d}")
 
     add_entities(
-        ZendureSmartFlowSensor(entry, coordinator, d)
-        for d in SENSORS
+        [ZendureSmartFlowSensor(entry, coordinator, d) for d in SENSORS]
     )
 
 class ZendureSmartFlowSensor(SensorEntity):
