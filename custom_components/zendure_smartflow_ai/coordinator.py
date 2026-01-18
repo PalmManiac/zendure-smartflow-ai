@@ -177,6 +177,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_ts": None,
             "power_state": "idle",  # idle | discharging | charging
 
+            # --- V1.3.x transparency ---
+            "next_action_time": None,
+
             # --- smoothing / EMA ---
             "ema_deficit": None,
             "ema_surplus": None,
@@ -772,6 +775,18 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
             is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
 
+            # --------------------------------------------------
+            # NEXT ACTION TIMESTAMP (V1.3.x)
+            # --------------------------------------------------
+            prev_state = self._persist.get("power_state")
+
+            if prev_state != self._persist.get("power_state"):
+                # State changed → record start time
+                if self._persist.get("power_state") in ("charging", "discharging"):
+                    self._persist["next_action_time"] = dt_util.utcnow().isoformat()
+                else:
+                    self._persist["next_action_time"] = None
+
             # If no real power flow is active, force sensor outputs to Standby/Idle
             if not is_charging and not is_discharging:
                 recommendation = RECO_STANDBY
@@ -892,6 +907,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "discharging_active" if self._persist.get("power_state") == "discharging" else
                     "none"
                 ),
+                
+                "next_action_time": self._persist.get("next_action_time"),
                 
                 "planning_checked": bool(self._persist.get("planning_checked")),
                 "planning_status": self._persist.get("planning_status"),
