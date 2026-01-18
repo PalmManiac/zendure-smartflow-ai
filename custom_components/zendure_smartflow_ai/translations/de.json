@@ -12,12 +12,8 @@
 
   "entity": {
     "select": {
-      "ai_mode": {
-        "name": "Betriebsmodus"
-      },
-      "manual_action": {
-        "name": "Manuelle Aktion"
-      }
+      "ai_mode": { "name": "Betriebsmodus" },
+      "manual_action": { "name": "Manuelle Aktion" }
     },
 
     "number": {
@@ -83,31 +79,20 @@
         }
       },
 
-      "planning_status": {
-        "name": "Preisplanung Status",
-        "state": {
-          "not_checked": "Noch nicht geprüft",
-          "planning_inactive_mode": "Planung deaktiviert (Modus)",
-          "planning_blocked_soc_full": "Akku voll – Planung blockiert",
-          "planning_no_price_now": "Kein aktueller Strompreis",
-          "planning_no_price_data": "Keine Preisdaten verfügbar",
-          "planning_no_peak_detected": "Keine relevante Preisspitze erkannt",
-          "planning_waiting_for_cheap_window": "Warte auf günstiges Ladefenster",
-          "planning_charge_now": "Laden erlaubt",
-          "planning_last_chance": "Letzte Chance vor Preisspitze",
-          "planning_peak_detected_insufficient_window": "Zeitfenster vor Preisspitze zu kurz"
-        }
+      "next_action_time": {
+        "name": "Startzeit nächste Aktion"
       },
 
+      "planning_status": { "name": "Preisplanung Status" },
       "planning_active": { "name": "Preisvorplanung aktiv" },
-      "planning_target_soc": { "name": "Ziel-SoC (Planung)" },
+      "planning_target_soc": { "name": "Ziel-SoC (Preisplanung)" },
       "planning_reason": { "name": "Planungsbegründung" },
 
       "ai_debug": { "name": "KI-Debug" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
-      "profit_eur": { "name": "Ersparnis / Gewinn" }
+      "profit_eur": { "name": "Ersparnis / Gewinn (gesamt)" }
     }
   },
 
