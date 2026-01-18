@@ -38,13 +38,28 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            user_input = dict(user_input)
             grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_NONE)
 
+            # --- validation ---
             if grid_mode == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
 
+            # --- HARD CLEANUP (IMPORTANT) ---
             if not errors:
+                if grid_mode == GRID_MODE_SPLIT:
+                    user_input.pop(CONF_GRID_POWER_ENTITY, None)
+
+                elif grid_mode == GRID_MODE_SINGLE:
+                    user_input.pop(CONF_GRID_IMPORT_ENTITY, None)
+                    user_input.pop(CONF_GRID_EXPORT_ENTITY, None)
+
+                elif grid_mode == GRID_MODE_NONE:
+                    user_input.pop(CONF_GRID_POWER_ENTITY, None)
+                    user_input.pop(CONF_GRID_IMPORT_ENTITY, None)
+                    user_input.pop(CONF_GRID_EXPORT_ENTITY, None)
+
                 return self.async_create_entry(
                     title="Zendure SmartFlow AI",
                     data=user_input,
@@ -67,13 +82,28 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
 
         if user_input is not None:
+            user_input = dict(user_input)
             grid_mode = user_input.get(CONF_GRID_MODE, GRID_MODE_NONE)
 
+            # --- validation ---
             if grid_mode == GRID_MODE_SPLIT:
                 if not user_input.get(CONF_GRID_IMPORT_ENTITY) or not user_input.get(CONF_GRID_EXPORT_ENTITY):
                     errors["base"] = "grid_split_missing"
 
+            # --- HARD CLEANUP (IMPORTANT) ---
             if not errors:
+                if grid_mode == GRID_MODE_SPLIT:
+                    user_input.pop(CONF_GRID_POWER_ENTITY, None)
+
+                elif grid_mode == GRID_MODE_SINGLE:
+                    user_input.pop(CONF_GRID_IMPORT_ENTITY, None)
+                    user_input.pop(CONF_GRID_EXPORT_ENTITY, None)
+
+                elif grid_mode == GRID_MODE_NONE:
+                    user_input.pop(CONF_GRID_POWER_ENTITY, None)
+                    user_input.pop(CONF_GRID_IMPORT_ENTITY, None)
+                    user_input.pop(CONF_GRID_EXPORT_ENTITY, None)
+
                 return self.async_update_reload_and_abort(
                     entry,
                     data_updates=user_input,
