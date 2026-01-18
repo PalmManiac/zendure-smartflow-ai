@@ -1,10 +1,23 @@
 {
   "title": "Zendure SmartFlow AI",
 
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Zendure SmartFlow AI",
+        "description": "Connect your Zendure and energy sensors for intelligent, stable battery control."
+      }
+    }
+  },
+
   "entity": {
     "select": {
-      "ai_mode": { "name": "Operating mode" },
-      "manual_action": { "name": "Manual action" }
+      "ai_mode": {
+        "name": "Operating mode"
+      },
+      "manual_action": {
+        "name": "Manual action"
+      }
     },
 
     "number": {
@@ -14,7 +27,7 @@
       "max_discharge": { "name": "Max discharge power" },
       "emergency_charge": { "name": "Emergency charge power" },
       "emergency_soc": { "name": "Emergency charge below SoC" },
-      "very_expensive_threshold": { "name": "Very expensive threshold" },
+      "very_expensive_threshold": { "name": "Very expensive price threshold" },
       "profit_margin_pct": { "name": "Profit margin (%)" }
     },
 
@@ -22,7 +35,7 @@
       "status": {
         "name": "System status",
         "state": {
-          "init": "Initialization",
+          "init": "Initializing",
           "ok": "OK",
           "sensor_invalid": "Invalid sensor data",
           "price_invalid": "Invalid price data"
@@ -34,16 +47,16 @@
         "state": {
           "standby": "Standby",
           "charge_surplus": "Charging (PV surplus)",
-          "cover_deficit": "Discharging (cover house load)",
+          "cover_deficit": "Discharging (covering house load)",
           "expensive_discharge": "Discharging (high price)",
           "very_expensive_force": "Forced discharge (extreme prices)",
-          "emergency_charge": "Emergency charging",
+          "emergency_charge": "Emergency charging active",
           "manual": "Manual mode"
         }
       },
 
       "recommendation": {
-        "name": "Recommendation",
+        "name": "AI recommendation",
         "state": {
           "standby": "No action",
           "charge": "Charge",
@@ -52,7 +65,57 @@
         }
       },
 
-      "decision_reason": { "name": "Decision reason" },
+      "decision_reason": {
+        "name": "Decision reason",
+        "state": {
+          "standby": "Standby",
+          "state_idle": "No demand detected",
+
+          "state_enter_discharge": "Discharge started (demand detected)",
+          "state_discharging": "Discharging active (covering house load)",
+          "state_enter_charge": "Charging started (surplus detected)",
+          "state_charging": "Charging active",
+
+          "pv_surplus_charge": "Charging PV surplus",
+
+          "expensive_discharge": "Discharging due to high price",
+          "very_expensive_force_discharge": "Forced discharge due to extreme price peak",
+
+          "emergency_latched_charge": "Emergency charging active (latched)",
+          "soc_min_enforced": "Discharge stopped (minimum SoC reached)",
+
+          "manual_mode": "Manual mode active",
+          "manual_standby": "Manual standby",
+          "manual_charge": "Manual charging",
+          "manual_discharge": "Manual discharging"
+        }
+      },
+
+      "planning_status": {
+        "name": "Price planning status",
+        "state": {
+          "not_checked": "Not checked yet",
+          "planning_inactive_mode": "Planning inactive (mode)",
+          "planning_blocked_soc_full": "Battery full – planning blocked",
+          "planning_no_price_now": "No current electricity price",
+          "planning_no_price_data": "No price data available",
+          "planning_no_peak_detected": "No relevant price peak detected",
+          "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
+          "planning_charge_now": "Price planning: charging allowed",
+          "planning_last_chance": "Last chance before price peak",
+          "planning_peak_detected_insufficient_window": "Price peak detected, time window too short"
+        }
+      },
+
+      "planning_active": { "name": "Price planning active" },
+      "planning_target_soc": { "name": "Target SoC (price planning)" },
+      "planning_reason": { "name": "Planning reason" },
+
+      "ai_debug": { "name": "AI debug" },
+      "house_load": { "name": "House load" },
+      "price_now": { "name": "Current electricity price" },
+      "avg_charge_price": { "name": "Average battery charge price" },
+      "profit_eur": { "name": "Savings / profit (total)" },
 
       "next_action_state": {
         "name": "Next action",
@@ -70,33 +133,7 @@
 
       "next_action_time": {
         "name": "Next action start time"
-      },
-
-      "planning_status": {
-        "name": "Price planning status",
-        "state": {
-          "not_checked": "Not checked yet",
-          "planning_inactive_mode": "Planning inactive (mode)",
-          "planning_blocked_soc_full": "Battery full – planning blocked",
-          "planning_no_price_now": "No current price",
-          "planning_no_price_data": "No price data",
-          "planning_no_peak_detected": "No relevant price peak detected",
-          "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
-          "planning_charge_now": "Charge allowed (planning)",
-          "planning_last_chance": "Last chance before price peak",
-          "planning_peak_detected_insufficient_window": "Price peak detected, window too short"
-        }
-      },
-
-      "planning_active": { "name": "Price planning active" },
-      "planning_target_soc": { "name": "Target SoC (planning)" },
-      "planning_reason": { "name": "Planning reason" },
-
-      "ai_debug": { "name": "AI debug" },
-      "house_load": { "name": "House load" },
-      "price_now": { "name": "Current electricity price" },
-      "avg_charge_price": { "name": "Average battery charge price" },
-      "profit_eur": { "name": "Savings / profit (total)" }
+      }
     }
   },
 
