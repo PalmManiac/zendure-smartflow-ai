@@ -19,9 +19,39 @@
     },
 
     "sensor": {
-      "status": { "name": "System status" },
-      "ai_status": { "name": "AI status" },
-      "recommendation": { "name": "Recommendation" },
+      "status": {
+        "name": "System status",
+        "state": {
+          "init": "Initialization",
+          "ok": "OK",
+          "sensor_invalid": "Invalid sensor data",
+          "price_invalid": "Invalid price data"
+        }
+      },
+
+      "ai_status": {
+        "name": "AI status",
+        "state": {
+          "standby": "Standby",
+          "charge_surplus": "Charging (PV surplus)",
+          "cover_deficit": "Discharging (cover house load)",
+          "expensive_discharge": "Discharging (high price)",
+          "very_expensive_force": "Forced discharge (extreme prices)",
+          "emergency_charge": "Emergency charging",
+          "manual": "Manual mode"
+        }
+      },
+
+      "recommendation": {
+        "name": "Recommendation",
+        "state": {
+          "standby": "No action",
+          "charge": "Charge",
+          "discharge": "Discharge",
+          "emergency": "Emergency charge"
+        }
+      },
+
       "decision_reason": { "name": "Decision reason" },
 
       "next_action_state": {
@@ -42,7 +72,22 @@
         "name": "Next action start time"
       },
 
-      "planning_status": { "name": "Price planning status" },
+      "planning_status": {
+        "name": "Price planning status",
+        "state": {
+          "not_checked": "Not checked yet",
+          "planning_inactive_mode": "Planning inactive (mode)",
+          "planning_blocked_soc_full": "Battery full – planning blocked",
+          "planning_no_price_now": "No current price",
+          "planning_no_price_data": "No price data",
+          "planning_no_peak_detected": "No relevant price peak detected",
+          "planning_waiting_for_cheap_window": "Waiting for cheap charging window",
+          "planning_charge_now": "Charge allowed (planning)",
+          "planning_last_chance": "Last chance before price peak",
+          "planning_peak_detected_insufficient_window": "Price peak detected, window too short"
+        }
+      },
+
       "planning_active": { "name": "Price planning active" },
       "planning_target_soc": { "name": "Target SoC (planning)" },
       "planning_reason": { "name": "Planning reason" },
@@ -51,7 +96,21 @@
       "house_load": { "name": "House load" },
       "price_now": { "name": "Current electricity price" },
       "avg_charge_price": { "name": "Average battery charge price" },
-      "profit_eur": { "name": "Savings / profit" }
+      "profit_eur": { "name": "Savings / profit (total)" }
+    }
+  },
+
+  "state": {
+    "select.zendure_smartflow_ai.ai_mode": {
+      "automatic": "Automatic",
+      "summer": "Summer",
+      "winter": "Winter",
+      "manual": "Manual"
+    },
+    "select.zendure_smartflow_ai.manual_action": {
+      "standby": "Standby",
+      "charge": "Charge",
+      "discharge": "Discharge"
     }
   }
 }
