@@ -1,27 +1,33 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 from homeassistant.components.sensor import (
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
-    SensorDeviceClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .const import (
+    AI_STATUS_ENUMS,
     DOMAIN,
-    INTEGRATION_NAME,
     INTEGRATION_MANUFACTURER,
     INTEGRATION_MODEL,
+    INTEGRATION_NAME,
     INTEGRATION_VERSION,
-    STATUS_ENUMS,
-    AI_STATUS_ENUMS,
+    NEXT_ACTION_STATE_ENUMS,
     RECO_ENUMS,
-    NEXT_ACTION_STATE_ENUMS
+    STATUS_ENUMS,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 PLANNING_STATUS_ENUMS = [
     "not_checked",
@@ -38,16 +44,19 @@ PLANNING_STATUS_ENUMS = [
     "planning_last_chance",
 ]
 
+
 @dataclass(frozen=True, kw_only=True)
 class ZendureSensorEntityDescription(SensorEntityDescription):
     runtime_key: str
 
     def __post_init__(self):
+        # Sicherheitsnetz gegen sensor.…_none
         if not self.key:
             raise ValueError(
                 "ZendureSmartFlowSensor created without a key. "
                 "This would result in *_none entity_id."
             )
+
 
 SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
     # --- ENUM sensors (translated) ---
@@ -75,17 +84,15 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=RECO_ENUMS,
     ),
-
-    # --- NEW SENSOR (V1.3.0) ---
+    # --- NEW (V1.3.x) ---
     ZendureSensorEntityDescription(
         key="next_action_state",
         translation_key="next_action_state",
         runtime_key="next_action_state",
         icon="mdi:clock-outline",
         device_class=SensorDeviceClass.ENUM,
-        options=NEXT_ACTION_STATE_ENUMS
+        options=NEXT_ACTION_STATE_ENUMS,
     ),
-
     ZendureSensorEntityDescription(
         key="next_action_time",
         translation_key="next_action_time",
@@ -93,7 +100,6 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         icon="mdi:clock-start",
         device_class=SensorDeviceClass.TIMESTAMP,
     ),
-
     # --- Debug / reasoning ---
     ZendureSensorEntityDescription(
         key="ai_debug",
@@ -107,7 +113,6 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="decision_reason",
         icon="mdi:head-question-outline",
     ),
-
     # --- Planning transparency ---
     ZendureSensorEntityDescription(
         key="planning_status",
@@ -136,7 +141,6 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
         runtime_key="planning_reason",
         icon="mdi:text-long",
     ),
-
     # --- Numeric sensors ---
     ZendureSensorEntityDescription(
         key="house_load",
@@ -168,6 +172,7 @@ SENSORS: tuple[ZendureSensorEntityDescription, ...] = (
     ),
 )
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -175,12 +180,12 @@ async def async_setup_entry(
 ) -> None:
     coordinator = hass.data[DOMAIN][entry.entry_id]
 
-    # HARD SAFETY CHECK
+    # HARD SAFETY CHECK: nie ohne key anlegen
     for d in SENSORS:
         if not d.key:
             raise RuntimeError(f"Sensor without key detected: {d}")
 
-    entities = []
+    entities: list[ZendureSmartFlowSensor] = []
     for d in SENSORS:
         if not d.key:
             _LOGGER.error(
@@ -191,6 +196,7 @@ async def async_setup_entry(
         entities.append(ZendureSmartFlowSensor(entry, coordinator, d))
 
     add_entities(entities)
+
 
 class ZendureSmartFlowSensor(SensorEntity):
     _attr_has_entity_name = True
@@ -204,17 +210,14 @@ class ZendureSmartFlowSensor(SensorEntity):
         self.entity_description = description
         self.coordinator = coordinator
         self._entry = entry
-        
+
         # 🔒 FIX: Prevent creation of sensor.…_none entities
         if not description.key:
-            raise ValueError(
-                f"ZendureSmartFlowSensor created without key: {description}"
-            )
+            raise ValueError(f"ZendureSmartFlowSensor created without key: {description}")
 
-        self._attr_unique_id = (
-            f"{DOMAIN}_{entry.entry_id}_{description.key}"
-        )
-        
+        # Unique ID: stabil + eindeutig
+        self._attr_unique_id = f"{DOMAIN}_{entry.entry_id}_{description.key}"
+
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry.entry_id)},
             "name": INTEGRATION_NAME,
@@ -228,12 +231,12 @@ class ZendureSmartFlowSensor(SensorEntity):
         return self.coordinator.last_update_success
 
     @property
-    def native_value(self):
+    def native_value(self) -> Any:
         data = self.coordinator.data or {}
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        # Values that live in details
+        # Werte, die in "details" leben
         if key in (
             "house_load",
             "price_now",
@@ -246,9 +249,19 @@ class ZendureSmartFlowSensor(SensorEntity):
             "next_action_state",
             "next_action_time",
         ):
-            return details.get(key)
+            val = details.get(key)
+        else:
+            val = data.get(key)
 
-        return data.get(key)
+        # TIMESTAMP: robust gegen String -> datetime
+        if self.entity_description.device_class == SensorDeviceClass.TIMESTAMP:
+            if isinstance(val, str):
+                dt = dt_util.parse_datetime(val)
+                return dt
+            if isinstance(val, datetime):
+                return val
+
+        return val
 
     @property
     def extra_state_attributes(self):
@@ -265,13 +278,12 @@ class ZendureSmartFlowSensor(SensorEntity):
             "planning_active",
             "planning_target_soc",
             "planning_reason",
-            "next_action_state",  # NEW
+            "next_action_state",
+            "next_action_time",
         ):
             return details
 
         return None
 
     async def async_added_to_hass(self) -> None:
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self.async_write_ha_state)
-        )
+        self.async_on_remove(self.coordinator.async_add_listener(self.async_write_ha_state))
