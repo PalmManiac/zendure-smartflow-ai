@@ -562,7 +562,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             out_w = 0.0
             recommendation = RECO_STANDBY
             decision_reason = "standby"
-            power_state = str(self._persist.get("power_state") or "idle")
+            prev_power_state = str(self._persist.get("power_state") or "idle")
+            power_state = prev_power_state
 
             # reset planning flags each cycle (still exposed via sensors, even if not used)
             self._persist["planning_checked"] = False
@@ -795,13 +796,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # FINAL EFFECTIVE STATE (authoritative for sensors)
             # --------------------------------------------------
 
+            is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
+            is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
+            
             # --------------------------------------------------
             # NEXT PLANNED ACTION (V1.4.0 – transparency only)
             # --------------------------------------------------
             planned_action = "none"
             planned_time = None
 
-            if planning.get("action") == "charge":
+            if planning.get("status") == "planning_charge_now":
                 planned_action = "charge"
                 planned_time = now + timedelta(minutes=30)
 
@@ -814,15 +818,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 planned_time.isoformat() if planned_time else None
             )
 
-            is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
-            is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
-
             # --------------------------------------------------
             # NEXT ACTION TIMESTAMP (V1.3.x)
             # --------------------------------------------------
-            prev_state = self._persist.get("power_state")
-
-            if prev_state != self._persist.get("power_state"):
+            if prev_power_state != str(self._persist.get("power_state") or "idle"):
                 # State changed → record start time
                 if self._persist.get("power_state") in ("charging", "discharging"):
                     self._persist["next_action_time"] = dt_util.utcnow().isoformat()
