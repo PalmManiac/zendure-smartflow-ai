@@ -1,83 +1,100 @@
 {
-  "config": {
-    "error": {
-      "grid_split_missing": "Bei \"Zwei Sensoren\" müssen Bezug und Einspeisung beide ausgewählt werden."
-    },
-    "step": {
-      "user": {
-        "title": "Zendure SmartFlow AI",
-        "description": "Wähle die Sensoren und Entitäten aus. Der Hausverbrauch wird intern berechnet (kein Helper nötig). Preise sind optional.",
-        "data": {
-          "soc_entity": "Akkustand (SoC) in %",
-          "pv_entity": "PV-Leistung (W)",
-          "price_export_entity": "Strompreis-Export (optional)",
-          "price_now_entity": "Aktueller Strompreis (optional, €/kWh)",
-          "ac_mode_entity": "Zendure AC Mode (Select)",
-          "input_limit_entity": "Zendure Input-Limit (W)",
-          "output_limit_entity": "Zendure Output-Limit (W)",
-          "grid_mode": "Netzsensor-Setup",
-          "grid_power_entity": "Netzleistung (+Bezug / −Einspeisung)",
-          "grid_import_entity": "Netzbezug (W)",
-          "grid_export_entity": "Netzeinspeisung (W)"
-        }
-      }
-    }
-  },
+  "title": "Zendure SmartFlow AI",
+
   "entity": {
     "select": {
       "ai_mode": { "name": "Betriebsmodus" },
       "manual_action": { "name": "Manuelle Aktion" }
     },
+
     "number": {
-      "soc_min": { "name": "SoC Minimum (%)" },
-      "soc_max": { "name": "SoC Maximum (%)" },
-      "max_charge": { "name": "Max. Ladeleistung (W)" },
-      "max_discharge": { "name": "Max. Entladeleistung (W)" },
-      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
-      "very_expensive_threshold": { "name": "Sehr-teuer-Schwelle (€/kWh)" },
-      "emergency_soc": { "name": "Notladung ab SoC (%)" },
-      "emergency_charge": { "name": "Notladeleistung (W)" },
+      "soc_min": { "name": "SoC Minimum" },
+      "soc_max": { "name": "SoC Maximum" },
+      "max_charge": { "name": "Max. Ladeleistung" },
+      "max_discharge": { "name": "Max. Entladeleistung" },
+      "emergency_charge": { "name": "Notladeleistung" },
+      "emergency_soc": { "name": "Notladung ab SoC" },
+      "very_expensive_threshold": { "name": "Sehr-teuer-Schwelle" },
       "profit_margin_pct": { "name": "Gewinnmarge (%)" }
     },
+
     "sensor": {
-      "status": { "name": "Systemstatus" },
-      "ai_status": { "name": "KI-Status" },
-      "recommendation": { "name": "Empfehlung" },
-      "ai_debug": { "name": "KI Debug" },
-      "decision_reason": { "name": "Entscheidungsgrund" },
-      "next_action_state": {
-        "name": "Nächste Aktion",
+      "status": {
+        "name": "Systemstatus",
         "state": {
-          "none": "Keine Aktion geplant",
-          "planned_charge": "Geplantes Laden",
-          "planned_discharge": "Geplante Entladung",
-          "charging_active": "Ladevorgang aktiv",
-          "discharging_active": "Entladevorgang aktiv",
-          "manual_charge": "Manuelles Laden",
-          "manual_discharge": "Manuelle Entladung",
-          "emergency_charge": "Notladung"
+          "init": "Initialisierung",
+          "ok": "OK",
+          "sensor_invalid": "Sensordaten ungültig",
+          "price_invalid": "Preisdaten ungültig"
         }
       },
-      "next_action_time": { "name": "Startzeit nächste Aktion" },
-      "next_planned_action": {
-        "name": "Geplante Aktion (Preisplanung)",
+
+      "ai_status": {
+        "name": "KI-Status",
         "state": {
-          "none": "Keine Aktion geplant",
-          "charge": "Laden geplant",
-          "discharge": "Entladen geplant",
-          "wait": "Warten",
+          "standby": "Bereitschaft",
+          "charge_surplus": "Laden (Überschuss)",
+          "cover_deficit": "Entladen (Hauslast)",
+          "expensive_discharge": "Entladen (teuer)",
+          "very_expensive_force": "Zwangsentladung",
+          "emergency_charge": "Notladung",
+          "manual": "Manueller Modus"
+        }
+      },
+
+      "recommendation": {
+        "name": "Empfehlung",
+        "state": {
+          "standby": "Keine Aktion",
+          "charge": "Laden",
+          "discharge": "Entladen",
           "emergency": "Notladung"
         }
       },
-      "next_planned_action_time": { "name": "Geplanter Startzeitpunkt" },
+
+      "decision_reason": {
+        "name": "Entscheidungsgrund"
+      },
+
+      "planning_status": {
+        "name": "Preisplanung Status",
+        "state": {
+          "not_checked": "Noch nicht geprüft",
+          "planning_inactive_mode": "Planung deaktiviert",
+          "planning_blocked_soc_full": "Akku voll",
+          "planning_no_price_now": "Kein aktueller Preis",
+          "planning_no_price_data": "Keine Preisdaten",
+          "planning_no_peak_detected": "Keine Preisspitze",
+          "planning_waiting_for_cheap_window": "Warte auf günstigen Zeitraum",
+          "planning_charge_now": "Jetzt laden",
+          "planning_last_chance": "Letzte Chance",
+          "planning_peak_detected_insufficient_window": "Zeitfenster zu kurz"
+        }
+      },
+
+      "planning_active": { "name": "Preisplanung aktiv" },
+      "planning_target_soc": { "name": "Ziel-SoC (Planung)" },
+      "planning_reason": { "name": "Planungsbegründung" },
+
+      "next_action_state": {
+        "name": "Nächste Aktion",
+        "state": {
+          "none": "Keine Aktion",
+          "planned_charge": "Geplantes Laden",
+          "planned_discharge": "Geplante Entladung",
+          "charging_active": "Laden aktiv",
+          "discharging_active": "Entladen aktiv",
+          "manual_charge": "Manuelles Laden",
+          "manual_discharge": "Manuelles Entladen",
+          "emergency_charge": "Notladung"
+        }
+      },
+
+      "next_action_time": { "name": "Startzeit nächste Aktion" },
       "house_load": { "name": "Hauslast" },
       "price_now": { "name": "Aktueller Strompreis" },
       "avg_charge_price": { "name": "Ø Ladepreis Akku" },
-      "profit_eur": { "name": "Ersparnis / Gewinn" },
-      "planning_status": { "name": "Preis-Vorplanung Status" },
-      "planning_active": { "name": "Preis-Vorplanung aktiv" },
-      "planning_target_soc": { "name": "Ziel-SoC (Planung)" },
-      "planning_reason": { "name": "Planungsbegründung" }
+      "profit_eur": { "name": "Ersparnis / Gewinn" }
     }
   }
 }
