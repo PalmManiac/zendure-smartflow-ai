@@ -645,6 +645,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # IMPORTANT: must not be overwritten by the state machine afterwards
             # --------------------------------------------------
             planning_override = False
+
+            if (
+                ai_mode == AI_MODE_AUTOMATIC
+                and planning.get("action") == "charge"
+                and planning.get("status") == "planning_charge_now"
+                and soc < float(planning.get("target_soc") or soc_max)
+                and not self._persist.get("emergency_active")
+            ):
+                planning_override = True
+                self._persist["planning_active"] = True
+
+                ac_mode = ZENDURE_MODE_INPUT
+                in_w = float(max_charge)
+                out_w = 0.0
+                recommendation = RECO_CHARGE
+                decision_reason = "planning_charge_before_peak"
+                self._persist["power_state"] = "charging"
+                power_state = "charging"
+
             elif (
                 ai_mode == AI_MODE_AUTOMATIC
                 and planning.get("action") == "discharge"
