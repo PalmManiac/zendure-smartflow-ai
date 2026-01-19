@@ -325,6 +325,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self,
         soc: float,
         soc_max: float,
+        soc_min: float,
         price_now: float | None,
         expensive: float,
         very_expensive: float,
@@ -605,6 +606,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             planning = self._evaluate_price_planning(
                 soc=soc,
                 soc_max=soc_max,
+                soc_min=soc_min,
                 price_now=price_now,
                 expensive=expensive,
                 very_expensive=very_expensive,
@@ -818,7 +820,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         decision_reason = "very_expensive_force_discharge"
                         self._persist["power_state"] = "discharging"
                         power_state = "discharging"
-                    elif price_now >= expensive and power_state == "idle" and deficit_raw > 0.0:
+                    elif (
+                        price_now >= expensive
+                        and power_state == "idle"
+                        and deficit_raw > 0.0
+                        and avg_charge_price is not None
+                        and price_now > avg_charge_price
+                    ):
                         ac_mode = ZENDURE_MODE_OUTPUT
                         recommendation = RECO_DISCHARGE
                         prev_target = float(self._persist.get("discharge_target_w") or 0.0)
@@ -893,7 +901,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else:
                     self._persist["next_action_time"] = None
 
-            if not is_charging and not is_discharging:
+            if not is_charging and not is_discharging and not planning_override:
                 recommendation = RECO_STANDBY
                 decision_reason = "state_idle"
 
