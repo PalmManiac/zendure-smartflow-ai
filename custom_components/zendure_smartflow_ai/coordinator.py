@@ -375,7 +375,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not isinstance(item, dict):
                 continue
 
-            ts = item.get("starts_at") or item.get("start") or item.get("time")
+            ts = (
+                item.get("start_time")
+                or item.get("starts_at")
+                or item.get("start")
+                or item.get("time")
+            )
             p = _to_float(item.get("price_per_kwh"), None)
             if not ts or p is None:
                 continue
@@ -893,19 +898,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
             is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
 
-            # NEXT PLANNED ACTION (transparency)
-            planned_action = "none"
-            planned_time = None
+            # NEXT PLANNED ACTION (transparency – do NOT overwrite future planning)
+            if planning.get("status") == "planning_charge_now":
+                self._persist["next_planned_action"] = "charge"
+                self._persist["next_planned_action_time"] = now.isoformat()
 
-            if planning.get("status") == "planning_waiting_for_cheap_window" and planning.get("latest_start"):
-                planned_action = "charge"
-                planned_time = dt_util.parse_datetime(str(planning.get("latest_start")))
-            elif planning.get("status") == "planning_charge_now":
-                planned_action = "charge"
-                planned_time = now
+            elif planning.get("status") == "planning_waiting_for_cheap_window":
+                self._persist["next_planned_action"] = "charge"
+                self._persist["next_planned_action_time"] = planning.get("latest_start")
 
-            self._persist["next_planned_action"] = planned_action
-            self._persist["next_planned_action_time"] = planned_time.isoformat() if planned_time else None
+            # else: keep previously exposed future planning (e.g. tomorrow peak)
 
             # NEXT ACTION TIMESTAMP (V1.3.x)
             if prev_power_state != str(self._persist.get("power_state") or "idle"):
