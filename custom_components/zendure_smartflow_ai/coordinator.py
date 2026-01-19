@@ -409,8 +409,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if float(peak_price) >= float(very_expensive) and soc > soc_min:
             result.update(
                 action="discharge",
-                watts=float(max_charge),  # Begrenzung erfolgt später
-                status="planning_discharge_now",
+                status="planning_discharge_planned",
                 next_peak=peak_time.isoformat(),
                 reason="discharge_during_price_peak",
                 target_soc=soc_min,
@@ -646,23 +645,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # IMPORTANT: must not be overwritten by the state machine afterwards
             # --------------------------------------------------
             planning_override = False
-            if (
+            elif (
                 ai_mode == AI_MODE_AUTOMATIC
-                and planning.get("action") == "charge"
-                and planning.get("status") == "planning_charge_now"
-                and soc < float(planning.get("target_soc") or soc_max)
+                and planning.get("action") == "discharge"
+                and planning.get("status") == "planning_discharge_planned"
+                and planning.get("next_peak") is not None
                 and not self._persist.get("emergency_active")
             ):
-                planning_override = True
-                self._persist["planning_active"] = True
+                peak_dt = dt_util.parse_datetime(planning["next_peak"])
+                if peak_dt and abs((now - peak_dt).total_seconds()) <= 1800:
+                    planning_override = True
+                    self._persist["planning_active"] = True
 
-                ac_mode = ZENDURE_MODE_INPUT
-                in_w = float(max_charge)
-                out_w = 0.0
-                recommendation = RECO_CHARGE
-                decision_reason = "planning_charge_before_peak"
-                self._persist["power_state"] = "charging"
-                power_state = "charging"
+                    ac_mode = ZENDURE_MODE_OUTPUT
+                    in_w = 0.0
+                    out_w = min(float(max_discharge), max(float(deficit_raw), 0.0))
+                    recommendation = RECO_DISCHARGE
+                    decision_reason = "planning_discharge_peak"
+                    self._persist["power_state"] = "discharging"
+                    power_state = "discharging"
             
             # PRICE PLANNING OVERRIDE: discharge during very expensive peak
             elif (
