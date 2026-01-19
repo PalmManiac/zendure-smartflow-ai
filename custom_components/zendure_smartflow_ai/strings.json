@@ -35,7 +35,10 @@
       "soc_max": { "name": "SoC Maximum (%)" },
       "max_charge": { "name": "Max. Ladeleistung (W)" },
       "max_discharge": { "name": "Max. Entladeleistung (W)" },
+
+      "price_threshold": { "name": "Teuer-Schwelle (€/kWh)" },
       "very_expensive_threshold": { "name": "Sehr-teuer-Schwelle (€/kWh)" },
+
       "emergency_soc": { "name": "Notladung ab SoC (%)" },
       "emergency_charge": { "name": "Notladeleistung (W)" },
       "profit_margin_pct": { "name": "Gewinnmarge (%)" }
@@ -45,6 +48,7 @@
       "status": { "name": "Systemstatus" },
       "ai_status": { "name": "KI-Status" },
       "recommendation": { "name": "Empfehlung" },
+      "ai_debug": { "name": "KI Debug" },
       "decision_reason": { "name": "Entscheidungsgrund" },
 
       "next_action_state": {
@@ -63,6 +67,21 @@
 
       "next_action_time": {
         "name": "Startzeit nächste Aktion"
+      },
+
+      "next_planned_action": {
+        "name": "Geplante Aktion (Preisplanung)",
+        "state": {
+          "none": "Keine Aktion geplant",
+          "charge": "Laden geplant",
+          "discharge": "Entladen geplant",
+          "wait": "Warten",
+          "emergency": "Notladung"
+        }
+      },
+
+      "next_planned_action_time": {
+        "name": "Geplanter Startzeitpunkt"
       },
 
       "house_load": { "name": "Hauslast" },
