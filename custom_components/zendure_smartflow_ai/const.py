@@ -10,7 +10,7 @@ DOMAIN = "zendure_smartflow_ai"
 INTEGRATION_NAME = "Zendure SmartFlow AI"
 INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "Home Assistant Integration"
-INTEGRATION_VERSION = "1.3.1"
+INTEGRATION_VERSION = "1.4.0-beta1"
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -24,27 +24,24 @@ PLATFORMS: list[Platform] = [
 CONF_SOC_ENTITY = "soc_entity"
 CONF_PV_ENTITY = "pv_entity"
 
-# Preis ist optional (Sommer/PV-only Nutzer)
-CONF_PRICE_EXPORT_ENTITY = "price_export_entity"  # Tibber Export (attributes.data)
-CONF_PRICE_NOW_ENTITY = "price_now_entity"        # direkter Preis-Sensor (€/kWh)
+CONF_PRICE_EXPORT_ENTITY = "price_export_entity"
+CONF_PRICE_NOW_ENTITY = "price_now_entity"
 
-# Zendure Steuer-Entitäten
-CONF_AC_MODE_ENTITY = "ac_mode_entity"            # select input/output
-CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"    # number W
-CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"  # number W
+CONF_AC_MODE_ENTITY = "ac_mode_entity"
+CONF_INPUT_LIMIT_ENTITY = "input_limit_entity"
+CONF_OUTPUT_LIMIT_ENTITY = "output_limit_entity"
 
-# Grid Setup (empfohlen, weil wir daraus den Hausverbrauch intern berechnen)
 CONF_GRID_MODE = "grid_mode"
-CONF_GRID_POWER_ENTITY = "grid_power_entity"      # +import / -export
-CONF_GRID_IMPORT_ENTITY = "grid_import_entity"    # import W
-CONF_GRID_EXPORT_ENTITY = "grid_export_entity"    # export W
+CONF_GRID_POWER_ENTITY = "grid_power_entity"
+CONF_GRID_IMPORT_ENTITY = "grid_import_entity"
+CONF_GRID_EXPORT_ENTITY = "grid_export_entity"
 
 GRID_MODE_NONE = "none"
 GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
 
 # ==================================================
-# Runtime select modes (internal values remain EN)
+# Runtime select modes
 # ==================================================
 AI_MODE_AUTOMATIC = "automatic"
 AI_MODE_SUMMER = "summer"
@@ -60,7 +57,7 @@ MANUAL_DISCHARGE = "discharge"
 MANUAL_ACTIONS = [MANUAL_STANDBY, MANUAL_CHARGE, MANUAL_DISCHARGE]
 
 # ==================================================
-# Settings (Number entities) – entity keys
+# Settings (Number entities)
 # ==================================================
 SETTING_SOC_MIN = "soc_min"
 SETTING_SOC_MAX = "soc_max"
@@ -70,8 +67,8 @@ SETTING_MAX_DISCHARGE = "max_discharge"
 SETTING_PRICE_THRESHOLD = "price_threshold"
 SETTING_VERY_EXPENSIVE_THRESHOLD = "very_expensive_threshold"
 
-SETTING_EMERGENCY_SOC = "emergency_soc"       # Notladung wenn SoC <= x
-SETTING_EMERGENCY_CHARGE = "emergency_charge" # Notladeleistung (W)
+SETTING_EMERGENCY_SOC = "emergency_soc"
+SETTING_EMERGENCY_CHARGE = "emergency_charge"
 
 SETTING_PROFIT_MARGIN_PCT = "profit_margin_pct"
 
@@ -81,7 +78,7 @@ SETTING_PROFIT_MARGIN_PCT = "profit_margin_pct"
 UPDATE_INTERVAL = 10  # seconds
 
 DEFAULT_SOC_MIN = 12.0
-DEFAULT_SOC_MAX = 100.0  # Herstellerempfehlung ✔
+DEFAULT_SOC_MAX = 100.0
 
 DEFAULT_MAX_CHARGE = 2400.0
 DEFAULT_MAX_DISCHARGE = 700.0
@@ -92,10 +89,10 @@ DEFAULT_VERY_EXPENSIVE_THRESHOLD = 0.49
 DEFAULT_EMERGENCY_SOC = 8.0
 DEFAULT_EMERGENCY_CHARGE = 1200.0
 
-DEFAULT_PROFIT_MARGIN_PCT = 100.0  # bis 1000% regelbar, default 100%
+DEFAULT_PROFIT_MARGIN_PCT = 100.0
 
 # ==================================================
-# Status / Enum values (internal)
+# Status / Enum values
 # ==================================================
 STATUS_INIT = "init"
 STATUS_OK = "ok"
@@ -139,6 +136,9 @@ RECO_ENUMS = [
     RECO_EMERGENCY,
 ]
 
+# ==================================================
+# NEXT ACTION (Realtime)
+# ==================================================
 NEXT_ACTION_STATE_ENUMS = [
     "none",
     "planned_charge",
@@ -151,7 +151,18 @@ NEXT_ACTION_STATE_ENUMS = [
 ]
 
 # ==================================================
-# Zendure AC Mode options (these are the options the Zendure select usually has)
+# PLANNING (Future / V1.4.0)
+# ==================================================
+NEXT_PLANNED_ACTION_ENUMS = [
+    "none",
+    "charge",
+    "discharge",
+    "wait",
+    "emergency",
+]
+
+# ==================================================
+# Zendure AC Mode options
 # ==================================================
 ZENDURE_MODE_INPUT = "input"
 ZENDURE_MODE_OUTPUT = "output"
