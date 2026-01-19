@@ -672,7 +672,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and not self._persist.get("emergency_active")
             ):
                 peak_dt = dt_util.parse_datetime(planning["next_peak"])
-                if peak_dt and abs((now - peak_dt).total_seconds()) <= 1800:
+                if peak_dt and now >= peak_dt:
                     planning_override = True
                     self._persist["planning_active"] = True
 
