@@ -1071,13 +1071,25 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "decision_reason": decision_reason,
             }
 
+            next_action_time_state = (
+                self._persist.get("next_planned_action_time") or ""
+            )
+
+            next_action_state = (
+                self._persist.get("next_planned_action") or "none"
+            )
+
             return {
                 "status": status,
                 "ai_status": ai_status,
                 "recommendation": recommendation,
-                "debug": "OK" if status == STATUS_OK else str(status).upper(),
+                "debug": "OK",
                 "details": details,
                 "decision_reason": decision_reason,
+
+                # --- FIX: real sensor states ---
+                "next_action_time": next_action_time_state,
+                "next_action_state": next_action_state,
             }
 
         except Exception as err:
