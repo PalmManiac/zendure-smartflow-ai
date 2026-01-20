@@ -619,6 +619,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._persist["planning_target_soc"] = planning.get("target_soc")
             self._persist["planning_next_peak"] = planning.get("next_peak")
 
+            # --- ensure sensors are never None (avoid 'unknown') ---
+            self._persist.setdefault("next_planned_action", "none")
+            self._persist.setdefault("next_planned_action_time", "")
+
             # --- FIX: expose next planned action time consistently ---
             next_action = None
             next_time = None
