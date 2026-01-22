@@ -223,12 +223,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.runtime_mode["manual_action"] = action
 
     async def _set_ac_mode(self, mode: str) -> None:
-        """Set AC mode only when it changes (avoid service spam / HA lag)."""
-        last = self._persist.get("last_set_mode")
-        # in manual: always allow (UI feels more responsive)
-        if self.runtime_mode.get("ai_mode") != AI_MODE_MANUAL:
-            if last == mode:
-                return
+        """Set AC mode only when it actually differs from current state."""
+        current = self._state(self.entities.ac_mode)
+
+        # If HA already shows the desired option, nothing to do
+        if current == mode:
+            self._persist["last_set_mode"] = mode
+            return
+
+        # Always try to enforce (especially important after a failed switch)
         self._persist["last_set_mode"] = mode
         await self.hass.services.async_call(
             "select",
