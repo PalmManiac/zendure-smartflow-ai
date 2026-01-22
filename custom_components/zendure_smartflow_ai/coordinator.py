@@ -751,6 +751,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist["power_state"] = "charging"
                 power_state = "charging"
 
+            # --- FIX: SUMMER MODE discharge on deficit (no price logic) ---
+            elif (
+                ai_mode == AI_MODE_SUMMER
+                and deficit_raw > 80.0
+                and house_load > 150.0
+                and soc > soc_min
+            ):
+                ac_mode = ZENDURE_MODE_OUTPUT
+                recommendation = RECO_DISCHARGE
+                out_w = min(float(max_discharge), float(deficit_raw))
+                in_w = 0.0
+                decision_reason = "summer_discharge_cover_deficit"
+                self._persist["power_state"] = "discharging"
+                power_state = "discharging"
+                planning_override = True
+
             # 2) manual mode
             elif ai_mode == AI_MODE_MANUAL:
                 planning_override = False
