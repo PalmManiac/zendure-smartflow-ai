@@ -285,8 +285,6 @@ class ZendureSmartFlowSensor(SensorEntity):
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
         )
-        
-from __future__ import annotations
 
 from dataclasses import dataclass
 
