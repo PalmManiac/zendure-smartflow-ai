@@ -573,6 +573,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             profit_margin_pct = self._get_setting(SETTING_PROFIT_MARGIN_PCT, DEFAULT_PROFIT_MARGIN_PCT)
 
             ai_mode = self.runtime_mode.get("ai_mode", AI_MODE_AUTOMATIC)
+
+            # --- FIX: reset power_state on AI mode change ---
+            prev_ai_mode = self._persist.get("prev_ai_mode")
+            if prev_ai_mode != ai_mode:
+                self._persist["power_state"] = "idle"
+                self._persist["discharge_target_w"] = 0.0
+                _LOGGER.debug(
+                    "Zendure: AI mode changed %s → %s, resetting power_state",
+                    prev_ai_mode,
+                    ai_mode,
+                )
+
+            self._persist["prev_ai_mode"] = ai_mode
+            
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
             deficit_raw_val, surplus_raw_val = self._get_grid()
