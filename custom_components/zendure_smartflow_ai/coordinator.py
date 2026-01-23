@@ -905,7 +905,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # IMPORTANT: do NOT auto-flip to charging just because surplus appears
                     # (surplus could be caused by discharge overshoot/noise).
                     # Only allow the existing CHARGE state if it was entered from IDLE.
-                    if pv_stop_discharge and real_pv_surplus and soc < soc_max:
+                    if (
+                        pv_stop_discharge
+                        and real_pv_surplus
+                        and soc < soc_max
+                        and out_w < 120.0
+                    ):
                         # soft stop discharge; next cycle IDLE can decide CHARGE
                         self._persist["discharge_target_w"] = 0.0
                         out_w = 0.0
@@ -916,7 +921,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 elif power_state == "charging":
                     ac_mode = ZENDURE_MODE_INPUT
                     recommendation = RECO_CHARGE
-                    in_w = min(float(max_charge), max(float(surplus), 0.0))
+                    in_w = min(float(max_charge), max(float(pv_w - house_load), 0.0))
                     out_w = 0.0
                     self._persist["discharge_target_w"] = 0.0
                     decision_reason = decision_reason if decision_reason.startswith("state_enter") else "state_charging"
