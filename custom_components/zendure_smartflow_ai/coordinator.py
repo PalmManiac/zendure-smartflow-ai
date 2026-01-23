@@ -619,6 +619,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             house_load = _ema("ema_house_load", house_load_raw) or house_load_raw
             no_house_load = house_load < 120.0
 
+            # --- FIX: distinguish real PV surplus from battery-induced export ---
+            real_pv_surplus = (
+                surplus > 80.0
+                and pv_w > surplus + 50.0
+                and self._persist.get("power_state") != "discharging"
+            )
+
             # Winter detection
             is_winter_mode = (
                 ai_mode in (AI_MODE_WINTER, AI_MODE_AUTOMATIC)
@@ -631,7 +638,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             PV_STOP_W = 80.0
             PV_STOP_N = 3
 
-            if surplus > PV_STOP_W:
+            if real_pv_surplus:
                 self._persist["pv_surplus_cnt"] = int(self._persist.get("pv_surplus_cnt") or 0) + 1
             else:
                 self._persist["pv_surplus_cnt"] = 0
@@ -864,7 +871,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["power_state"] = "discharging"
                         decision_reason = "state_enter_discharge"
 
-                    elif surplus > 80.0 and soc < soc_max:
+                    elif real_pv_surplus and soc < soc_max:
                         power_state = "charging"
                         self._persist["power_state"] = "charging"
                         decision_reason = "state_enter_charge"
@@ -898,7 +905,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     # IMPORTANT: do NOT auto-flip to charging just because surplus appears
                     # (surplus could be caused by discharge overshoot/noise).
                     # Only allow the existing CHARGE state if it was entered from IDLE.
-                    if pv_stop_discharge and soc < soc_max and pv_w > 200.0 and surplus > 250.0:
+                    if pv_stop_discharge and real_pv_surplus and soc < soc_max:
                         # soft stop discharge; next cycle IDLE can decide CHARGE
                         self._persist["discharge_target_w"] = 0.0
                         out_w = 0.0
