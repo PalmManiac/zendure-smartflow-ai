@@ -594,6 +594,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             deficit_raw = float(deficit_raw_val) if deficit_raw_val is not None else 0.0
             surplus_raw = float(surplus_raw_val) if surplus_raw_val is not None else 0.0
+            net_grid_w = float(deficit_raw) - float(surplus_raw)  # + import, - export
 
             surplus = _ema("ema_surplus", surplus_raw)
 
@@ -621,8 +622,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # --- FIX: distinguish real PV surplus from battery-induced export ---
             real_pv_surplus = (
-                surplus > 80.0
-                and pv_w > surplus + 50.0
+                surplus_raw > 80.0
+                and pv_w > surplus_raw + 50.0
                 and self._persist.get("power_state") != "discharging"
             )
 
@@ -760,7 +761,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         # DELTA controller for planning discharge too
                         prev_out = float(self._persist.get("discharge_target_w") or 0.0)
                         out_w = self._delta_discharge_w(
-                            deficit_w=deficit_raw,
+                            deficit_w=net_grid_w,
                             prev_out_w=prev_out,
                             max_discharge=max_discharge,
                             soc=soc,
@@ -833,7 +834,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                     prev_out = float(self._persist.get("discharge_target_w") or 0.0)
                     out_w = self._delta_discharge_w(
-                        deficit_w=deficit_raw,
+                        deficit_w=net_grid_w,
                         prev_out_w=prev_out,
                         max_discharge=max_discharge,
                         soc=soc,
@@ -855,10 +856,16 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 # Stop discharging when no deficit / no load / soc too low
                 if power_state == "discharging":
-                    if deficit_raw <= 30.0 or house_load <= 80.0 or soc <= soc_min:
-                        power_state = "idle"
-                        self._persist["power_state"] = "idle"
-                        self._persist["discharge_target_w"] = 0.0
+                # Stop only when there is basically no load OR SoC low OR we are already near-zero power.
+                if house_load <= 80.0 or soc <= soc_min:
+                    power_state = "idle"
+                    self._persist["power_state"] = "idle"
+                    self._persist["discharge_target_w"] = 0.0
+                elif abs(net_grid_w) <= 25.0 and float(self._persist.get("discharge_target_w") or 0.0) < 120.0:
+                    # near perfect balance and already low discharge => go idle
+                    power_state = "idle"
+                    self._persist["power_state"] = "idle"
+                    self._persist["discharge_target_w"] = 0.0
 
                 if power_state == "idle":
                     if (
@@ -890,7 +897,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                     prev_out = float(self._persist.get("discharge_target_w") or 0.0)
                     out_w = self._delta_discharge_w(
-                        deficit_w=deficit_raw,
+                        deficit_w=net_grid_w,
                         prev_out_w=prev_out,
                         max_discharge=max_discharge,
                         soc=soc,
@@ -941,7 +948,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         recommendation = RECO_DISCHARGE
                         prev_out = float(self._persist.get("discharge_target_w") or 0.0)
                         out_w = self._delta_discharge_w(
-                            deficit_w=deficit_raw,
+                            deficit_w=net_grid_w,
                             prev_out_w=prev_out,
                             max_discharge=max_discharge,
                             soc=soc,
@@ -964,7 +971,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         recommendation = RECO_DISCHARGE
                         prev_out = float(self._persist.get("discharge_target_w") or 0.0)
                         out_w = self._delta_discharge_w(
-                            deficit_w=deficit_raw,
+                            deficit_w=net_grid_w,
                             prev_out_w=prev_out,
                             max_discharge=max_discharge,
                             soc=soc,
