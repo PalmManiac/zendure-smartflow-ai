@@ -603,10 +603,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # --- FIX: correct house load calculation including battery discharge ---
 
-            # Battery discharge power (AC)
+            # Battery discharge power (AC) – use last known target (safe)
+
             battery_discharge = 0.0
             if self._persist.get("power_state") == "discharging":
-                battery_discharge = float(out_w)
+                battery_discharge = float(self._persist.get("discharge_target_w") or 0.0)
 
             # Eigenverbrauch = PV + Batterieentladung - Einspeisung
             eigenverbrauch = max(0.0, pv_w + battery_discharge - grid_export)
