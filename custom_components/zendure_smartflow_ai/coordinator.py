@@ -856,16 +856,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
                 # Stop discharging when no deficit / no load / soc too low
                 if power_state == "discharging":
-                # Stop only when there is basically no load OR SoC low OR we are already near-zero power.
-                if house_load <= 80.0 or soc <= soc_min:
-                    power_state = "idle"
-                    self._persist["power_state"] = "idle"
-                    self._persist["discharge_target_w"] = 0.0
-                elif abs(net_grid_w) <= 25.0 and float(self._persist.get("discharge_target_w") or 0.0) < 120.0:
-                    # near perfect balance and already low discharge => go idle
-                    power_state = "idle"
-                    self._persist["power_state"] = "idle"
-                    self._persist["discharge_target_w"] = 0.0
+                    # Stop only when there is basically no load OR SoC low
+                    if house_load <= 80.0 or soc <= soc_min:
+                        power_state = "idle"
+                        self._persist["power_state"] = "idle"
+                        self._persist["discharge_target_w"] = 0.0
+
+    # Near perfect balance and already low discharge => go idle
+    elif (
+        abs(net_grid_w) <= 25.0
+        and float(self._persist.get("discharge_target_w") or 0.0) < 120.0
+    ):
+        power_state = "idle"
+        self._persist["power_state"] = "idle"
+        self._persist["discharge_target_w"] = 0.0
 
                 if power_state == "idle":
                     if (
