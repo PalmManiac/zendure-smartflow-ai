@@ -601,9 +601,22 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             grid_import = deficit_raw if deficit_raw > 0.0 else 0.0
             grid_export = surplus_raw if surplus_raw > 0.0 else 0.0
 
-            house_load_raw = pv_w + grid_import - grid_export
+            # --- FIX: correct house load calculation including battery discharge ---
+
+            # Battery discharge power (AC)
+            battery_discharge = 0.0
+            if self._persist.get("power_state") == "discharging":
+                battery_discharge = float(out_w)
+
+            # Eigenverbrauch = PV + Batterieentladung - Einspeisung
+            eigenverbrauch = max(0.0, pv_w + battery_discharge - grid_export)
+
+            # Hauslast = Netzbezug + Eigenverbrauch
+            house_load_raw = grid_import + eigenverbrauch
             house_load_raw = max(house_load_raw, 0.0)
+
             house_load = _ema("ema_house_load", house_load_raw) or house_load_raw
+            no_house_load = house_load < 120.0
 
             # Winter detection
             is_winter_mode = (
