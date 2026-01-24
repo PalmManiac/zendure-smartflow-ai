@@ -861,11 +861,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["power_state"] = "idle"
                         self._persist["discharge_target_w"] = 0.0
                     # near perfect balance and already low discharge => go idle
-                    elif (
-                        abs(net_grid_w) <= 25.0
-                        and float(self._persist.get("discharge_target_w") or 0.0) < 120.0
-                    ):
-                        power_state = "idle"
+                    elif abs(net_grid_w) <= 25.0:
+                        # Nur Leistung langsam reduzieren, NICHT State wechseln
+                        self._persist["discharge_target_w"] = max(
+                            0.0,
+                            float(self._persist.get("discharge_target_w") or 0.0) - 30.0,
+                        )
                         self._persist["power_state"] = "idle"
                         self._persist["discharge_target_w"] = 0.0
 
@@ -880,7 +881,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["power_state"] = "discharging"
                         decision_reason = "state_enter_discharge"
 
-                    elif real_pv_surplus and soc < soc_max:
+                    elif (
+                        real_pv_surplus
+                        and soc < soc_max
+                        and float(self._persist.get("discharge_target_w") or 0.0) == 0.0
+                    ):
                         power_state = "charging"
                         self._persist["power_state"] = "charging"
                         decision_reason = "state_enter_charge"
