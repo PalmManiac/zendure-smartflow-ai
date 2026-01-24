@@ -586,7 +586,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
 
             self._persist["prev_ai_mode"] = ai_mode
-            
+
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
             deficit_raw_val, surplus_raw_val = self._get_grid()
@@ -605,7 +605,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # --- FIX: correct house load calculation including battery discharge ---
 
             # Battery discharge power (AC) – use last known target (safe)
-
             battery_discharge = 0.0
             if self._persist.get("power_state") == "discharging":
                 battery_discharge = float(self._persist.get("discharge_target_w") or 0.0)
@@ -861,15 +860,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         power_state = "idle"
                         self._persist["power_state"] = "idle"
                         self._persist["discharge_target_w"] = 0.0
-
-    # Near perfect balance and already low discharge => go idle
-    elif (
-        abs(net_grid_w) <= 25.0
-        and float(self._persist.get("discharge_target_w") or 0.0) < 120.0
-    ):
-        power_state = "idle"
-        self._persist["power_state"] = "idle"
-        self._persist["discharge_target_w"] = 0.0
+                    # near perfect balance and already low discharge => go idle
+                    elif (
+                        abs(net_grid_w) <= 25.0
+                        and float(self._persist.get("discharge_target_w") or 0.0) < 120.0
+                    ):
+                        power_state = "idle"
+                        self._persist["power_state"] = "idle"
+                        self._persist["discharge_target_w"] = 0.0
 
                 if power_state == "idle":
                     if (
