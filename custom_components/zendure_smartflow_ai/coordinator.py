@@ -466,7 +466,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
         TARGET_IMPORT_W = -20.0
-        DEADBAND_W = 60.0
+        DEADBAND_W = 40.0
 
         # Anti-Export Guard: ab dieser Einspeisung wird aggressiv reduziert
         EXPORT_GUARD_W = 70.0   # ab ~35W Export sofort deutlich runter
@@ -507,8 +507,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         out_w = max(0.0, min(float(max_discharge), out_w))
 
         # 3) Optional: nur wirklich bei quasi 0 Import ausmachen (nicht bei 20-30W!)
-        if allow_zero and net <= 5.0:
-            out_w = 0.0
+        if allow_zero and deficit_w <= 15.0:
+            out_w = max(out_w, 60.0)  # keep OUTPUT alive
 
         return float(out_w)
 
@@ -671,6 +671,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             decision_reason = "standby"
             prev_power_state = str(self._persist.get("power_state") or "idle")
             power_state = prev_power_state
+            force_no_charge = prev_power_state == "discharging"
 
             # reset planning flags each cycle
             self._persist["planning_checked"] = False
@@ -862,7 +863,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._persist["power_state"] = "idle"
 
                 # Stop discharging when no deficit / no load / soc too low
+                # --- HARD GUARD: never auto-switch to charging while discharging ---
                 if power_state == "discharging":
+                    # forbid charging entry regardless of PV / surplus / grid
+                    force_no_charge = True
+                else:
+                    force_no_charge = False
                     # Stop only when there is basically no load OR SoC low
                     if house_load <= 80.0 or soc <= soc_min:
                         power_state = "idle"
@@ -870,13 +876,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                         self._persist["discharge_target_w"] = 0.0
                     # near perfect balance and already low discharge => go idle
                     elif abs(net_grid_w) <= 25.0:
-                        # Nur Leistung langsam reduzieren, NICHT State wechseln
+                        # Feintuning-Zone: NICHT abschalten, nur leicht nachregeln
                         self._persist["discharge_target_w"] = max(
-                            0.0,
-                            float(self._persist.get("discharge_target_w") or 0.0) - 30.0,
+                            60.0,  # Mindestleistung, damit OUTPUT aktiv bleibt
+                            float(self._persist.get("discharge_target_w") or 0.0) - 20.0,
                         )
-                        self._persist["power_state"] = "idle"
-                        self._persist["discharge_target_w"] = 0.0
+                        power_state = "discharging"
+                        self._persist["power_state"] = "discharging"
 
                 if power_state == "idle":
                     if (
@@ -1192,6 +1198,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "manual_action": manual_action,
                 "decision_reason": decision_reason,
                 "delta_discharge_target_w": float(self._persist.get("discharge_target_w") or 0.0),
+                "force_no_charge": force_no_charge,
+                "target_import_w": TARGET_IMPORT_W,
+                "net_grid_w": net_grid_w,
             }
 
             # Sensor states (never None)
