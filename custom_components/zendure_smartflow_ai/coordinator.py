@@ -1199,7 +1199,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "decision_reason": decision_reason,
                 "delta_discharge_target_w": float(self._persist.get("discharge_target_w") or 0.0),
                 "force_no_charge": force_no_charge,
-                "target_import_w": TARGET_IMPORT_W,
+                "target_import_w": 35.0,
                 "net_grid_w": net_grid_w,
             }
 
