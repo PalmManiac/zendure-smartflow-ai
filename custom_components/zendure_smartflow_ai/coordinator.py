@@ -453,7 +453,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _delta_discharge_w(
         self,
         *,
-        deficit_w: float,
+        deficit_w: float,      # hier übergibst du net_grid_w (Import +, Export -)
         prev_out_w: float,
         max_discharge: float,
         soc: float,
@@ -464,42 +464,50 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Delta / incremental discharge controller:
         drives grid import close to a small target (avoids export / oscillation).
         """
-        # We deliberately keep a small import target so noise doesn't flip to export.
-        TARGET_IMPORT_W = 25.0
-        DEADBAND_W = 35.0
+        # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
+        TARGET_IMPORT_W = 90.0
+        DEADBAND_W = 60.0
 
-        err = float(deficit_w) - TARGET_IMPORT_W  # + => import too high => increase discharge
-        out_w = float(prev_out_w)
-
-        # Variable step: small near target, bigger when far away
-        # (fast ramp up, softer ramp down)
-        KP_UP = 0.55
-        KP_DOWN = 0.40
-        MAX_STEP_UP = 450.0
-        MAX_STEP_DOWN = 280.0
-
-        if err > DEADBAND_W:
-            step = min(MAX_STEP_UP, max(30.0, KP_UP * err))
-            out_w += step
-        elif err < -DEADBAND_W:
-            step = min(MAX_STEP_DOWN, max(20.0, KP_DOWN * abs(err)))
-            out_w -= step
-        else:
-            # inside deadband: minimal nudge towards "just enough"
-            # if we're importing a bit: very slow increase, if exporting: very slow decrease
-            if err > 0:
-                out_w += 10.0
-            else:
-                out_w -= 10.0
+        # Anti-Export Guard: ab dieser Einspeisung wird aggressiv reduziert
+        EXPORT_GUARD_W = 35.0   # ab ~35W Export sofort deutlich runter
 
         # Hard constraints
         if soc <= soc_min + 0.05:
             return 0.0
 
+        net = float(deficit_w)          # + import / - export
+        out_w = float(prev_out_w)
+
+        # 1) Anti-Export Guard: wenn wir exportieren, sofort stark reduzieren
+        if net < -EXPORT_GUARD_W:
+            # so weit runter, dass wir wieder Richtung TARGET_IMPORT kommen
+            cut = (abs(net) + TARGET_IMPORT_W) * 1.4
+            out_w = max(0.0, out_w - cut)
+            return float(min(float(max_discharge), out_w))
+
+        # 2) Normalregelung (Import-Target)
+        err = net - TARGET_IMPORT_W  # + => Import zu hoch => mehr entladen, - => zu wenig Import => weniger entladen
+
+        # schneller hoch, deutlich schneller runter als vorher
+        KP_UP = 0.55
+        KP_DOWN = 0.95
+        MAX_STEP_UP = 450.0
+        MAX_STEP_DOWN = 900.0
+
+        if err > DEADBAND_W:
+            step = min(MAX_STEP_UP, max(40.0, KP_UP * err))
+            out_w += step
+        elif err < -DEADBAND_W:
+            step = min(MAX_STEP_DOWN, max(60.0, KP_DOWN * abs(err)))
+            out_w -= step
+        else:
+            # in der Deadband: minimal Richtung Ziel
+            out_w -= 15.0
+
         out_w = max(0.0, min(float(max_discharge), out_w))
 
-        # Optional: if there's essentially no deficit, don't keep tiny discharge
-        if allow_zero and deficit_w <= 15.0:
+        # 3) Optional: nur wirklich bei quasi 0 Import ausmachen (nicht bei 20-30W!)
+        if allow_zero and net <= 2.0:
             out_w = 0.0
 
         return float(out_w)
