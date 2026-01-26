@@ -170,6 +170,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_ts": None,
             # state
             "power_state": "idle",  # idle | discharging | charging
+            "price_discharge_latched": False,
             # transparency
             "next_action_time": None,
             # smoothing
@@ -768,6 +769,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 decision_reason = "price_based_discharge"
                 self._persist["power_state"] = "discharging"
                 power_state = "discharging"
+                self._persist["price_discharge_latched"] = True
 
             # Charge now in cheap window
             elif (
@@ -825,6 +827,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self._persist.get("emergency_active"):
                 planning_override = False
                 self._persist["planning_active"] = False
+                self._persist["price_discharge_latched"] = False
 
                 ac_mode = ZENDURE_MODE_INPUT
                 recommendation = RECO_EMERGENCY
@@ -854,6 +857,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             elif ai_mode == AI_MODE_MANUAL:
                 planning_override = False
                 self._persist["planning_active"] = False
+                self._persist["price_discharge_latched"] = False
 
                 if manual_action == MANUAL_STANDBY:
                     ac_mode = ZENDURE_MODE_INPUT
@@ -898,16 +902,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # EXIT price based discharge when price advantage is gone
             # --------------------------------------------------
             elif (
-                self._persist.get("power_state") == "discharging"
-                and decision_reason == "price_based_discharge"
-                and (
-                    price_now is None
-                    or price_now < expensive
-                    or avg_charge_price is None
-                    or price_now <= float(avg_charge_price)
-                    or soc <= PRICE_DISCHARGE_RESERVE_SOC
-                )
+                self._persist.get("price_discharge_latched")
+                and self._persist.get("power_state") == "discharging"
+                and not price_discharge_active
             ):
+                self._persist["price_discharge_latched"] = False
+                self._persist["power_state"] = "idle"
+                self._persist["discharge_target_w"] = 0.0
+
+                ac_mode = ZENDURE_MODE_INPUT
+                in_w = 0.0 
+                out_w = 0.0
+                recommendation = RECO_STANDBY
+                decision_reason = "price_discharge_exit"
+                power_state = "idle"
                 self._persist["power_state"] = "idle"
                 self._persist["discharge_target_w"] = 0.0
 
