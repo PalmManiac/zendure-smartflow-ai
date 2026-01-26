@@ -661,6 +661,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # IMPORTANT: used in expensive discharge decision
             avg_charge_price = self._persist.get("trade_avg_charge_price")
+            
+            # --------------------------------------------------
+            # PRICE BASED DISCHARGE (explicit, independent of planning)
+            # --------------------------------------------------
+            PRICE_DISCHARGE_RESERVE_SOC = soc_min + 5.0
+
+            price_discharge_active = (
+                ai_mode == AI_MODE_AUTOMATIC
+                and price_now is not None
+                and avg_charge_price is not None
+                and price_now >= expensive
+                and price_now > float(avg_charge_price)
+                and soc > PRICE_DISCHARGE_RESERVE_SOC
+            )
 
             # Decide setpoints
             status = STATUS_OK
@@ -729,9 +743,34 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # PRICE PLANNING OVERRIDE
             # --------------------------------------------------
             planning_override = False
+            
+            # --------------------------------------------------
+            # PRICE BASED DISCHARGE (override everything else)
+            # --------------------------------------------------
+            if price_discharge_active:
+                planning_override = True
+                self._persist["planning_active"] = False
+
+                ac_mode = ZENDURE_MODE_OUTPUT
+                recommendation = RECO_DISCHARGE
+
+                prev_out = float(self._persist.get("discharge_target_w") or 0.0)
+                out_w = self._delta_discharge_w(
+                    deficit_w=net_grid_w,
+                    prev_out_w=prev_out,
+                    max_discharge=max_discharge,
+                    soc=soc,
+                    soc_min=soc_min,
+                )
+                self._persist["discharge_target_w"] = float(out_w)
+
+                in_w = 0.0
+                decision_reason = "price_based_discharge"
+                self._persist["power_state"] = "discharging"
+                power_state = "discharging"
 
             # Charge now in cheap window
-            if (
+            elif (
                 ai_mode == AI_MODE_AUTOMATIC
                 and planning.get("action") == "charge"
                 and planning.get("status") == "planning_charge_now"
@@ -854,7 +893,31 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     decision_reason = "manual_discharge"
                     self._persist["power_state"] = "discharging" if out_w > 0 else "idle"
                     power_state = self._persist["power_state"]
+            
+            # --------------------------------------------------
+            # EXIT price based discharge when price advantage is gone
+            # --------------------------------------------------
+            elif (
+                self._persist.get("power_state") == "discharging"
+                and decision_reason == "price_based_discharge"
+                and (
+                    price_now is None
+                    or price_now < expensive
+                    or avg_charge_price is None
+                    or price_now <= float(avg_charge_price)
+                    or soc <= PRICE_DISCHARGE_RESERVE_SOC
+                )
+            ):
+                self._persist["power_state"] = "idle"
+                self._persist["discharge_target_w"] = 0.0
 
+                ac_mode = ZENDURE_MODE_INPUT
+                in_w = 0.0
+                out_w = 0.0
+                recommendation = RECO_STANDBY
+                decision_reason = "price_discharge_exit"
+                power_state = "idle"
+             
             # 3) automatic state machine (only if planning is NOT overriding)
             elif ai_mode != AI_MODE_MANUAL and not planning_override:
                 # State transitions
@@ -1067,7 +1130,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             elif is_charging:
                 ai_status = AI_STATUS_CHARGE_SURPLUS
             elif is_discharging:
-                if decision_reason.startswith("very_expensive"):
+                if decision_reason == "price_based_discharge":
+                    ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
+                elif decision_reason.startswith("very_expensive"):
                     ai_status = AI_STATUS_VERY_EXPENSIVE_FORCE
                 elif decision_reason == "expensive_discharge":
                     ai_status = AI_STATUS_EXPENSIVE_DISCHARGE
