@@ -241,13 +241,26 @@ class ZendureSmartFlowSensor(SensorEntity):
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
-        # --- TIMESTAMP SENSORS MUST COME FROM TOP-LEVEL ---
+        from homeassistant.util import dt as dt_util
+
+        # --- TIMESTAMP SENSORS ---
         if self.device_class == SensorDeviceClass.TIMESTAMP:
             val = data.get(key)
-            if isinstance(val, str) and "T" in val:
-                return val
-            return None
 
+            if not val:
+                return None
+
+            # already datetime
+            if hasattr(val, "tzinfo"):
+                return dt_util.as_utc(val)
+
+            # string → datetime
+            if isinstance(val, str):
+                dt = dt_util.parse_datetime(val)
+                if dt:
+                    return dt_util.as_utc(dt)
+
+            return None
 
         # --- Numeric & enum values from details ---
         if key in (
