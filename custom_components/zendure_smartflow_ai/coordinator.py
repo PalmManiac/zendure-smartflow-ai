@@ -1303,7 +1303,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "debug": "OK" if status == STATUS_OK else str(status).upper(),
                 "details": details,
                 "decision_reason": decision_reason,
+                # --- SENSOR STATE (TOP LEVEL!) ---
                 "next_action_time": next_action_time_state,
+                "next_planned_action_time": next_planned_action_time_state,
                 "next_action_state": next_action_state,
             }
 
