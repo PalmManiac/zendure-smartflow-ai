@@ -1284,10 +1284,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 else ""
             )
 
-            next_action_time_state = (
+            def _iso_or_none(val):
+                try:
+                    if not val:
+                        return None
+                    dt = dt_util.parse_datetime(str(val))
+                    if not dt:
+                        return None
+                    return dt_util.as_utc(dt).isoformat()
+                except Exception:
+                    return None
+
+            next_action_time_state = _iso_or_none(
                 self._persist.get("next_action_time")
-                if isinstance(self._persist.get("next_action_time"), str)
-                else ""
             )
 
             next_action_state = (
