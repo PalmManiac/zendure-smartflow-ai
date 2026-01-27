@@ -194,9 +194,19 @@ Damit die Integration **stabil und korrekt** arbeitet, **müssen** folgende Punk
 ### 2️⃣ Zendure Home-Assistant Integration
 
 - **Keinen P1-Sensor auswählen**
+  
+  <img width="445" height="361" alt="ZHA-Konfig" src="https://github.com/user-attachments/assets/c275982a-f960-478b-81fa-9232c7e5fd25" />
+
   - ggf. vorausgewählten Sensor **entfernen**
+   
 - **Energie-Export: „Erlaubt“**
+  
+  <img width="345" height="660" alt="ZHA-Einstellung" src="https://github.com/user-attachments/assets/07d73262-7a98-4bf9-a11a-39eb4c541ca5" />
+
 - **Zendure Manager → Betriebsmodus: AUS**
+
+  <img width="343" height="590" alt="ZHA Manager" src="https://github.com/user-attachments/assets/bb1cfecf-6176-4089-a651-2a9534a30aaa" />
+
 
 ⚠️ Falsche Einstellungen hier führen zu:
 - Entladeabbrüchen
