@@ -1276,15 +1276,23 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "net_grid_w": net_grid_w,
             }
 
-            # Sensor states (never None)
-            next_action_time_state = (
+            # --- FINAL SENSOR STATES (Top-Level, never None) ---
+
+            next_planned_action_time_state = (
                 self._persist.get("next_planned_action_time")
-                if self._persist.get("next_planned_action_time") is not None
+                if isinstance(self._persist.get("next_planned_action_time"), str)
                 else ""
             )
+
+            next_action_time_state = (
+                self._persist.get("next_action_time")
+                if isinstance(self._persist.get("next_action_time"), str)
+                else ""
+            )
+
             next_action_state = (
                 self._persist.get("next_planned_action")
-                if self._persist.get("next_planned_action") is not None
+                if isinstance(self._persist.get("next_planned_action"), str)
                 else "none"
             )
 
