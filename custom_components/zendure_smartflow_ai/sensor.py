@@ -241,6 +241,12 @@ class ZendureSmartFlowSensor(SensorEntity):
         details = data.get("details") or {}
         key = self.entity_description.runtime_key
 
+        # --- TIMESTAMP SENSORS MUST COME FROM TOP-LEVEL ---
+        if self.device_class == SensorDeviceClass.TIMESTAMP:
+            value = data.get(key)
+            return value if isinstance(value, str) and value else None
+
+        # --- Numeric & enum values from details ---
         if key in (
             "house_load",
             "price_now",
@@ -251,9 +257,7 @@ class ZendureSmartFlowSensor(SensorEntity):
             "planning_target_soc",
             "planning_reason",
             "next_action_state",
-            "next_action_time",
             "next_planned_action",
-            "next_planned_action_time",
         ):
             return details.get(key)
 
