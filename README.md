@@ -8,16 +8,16 @@
 
 ## Überblick
 
-**Zendure SmartFlow AI** ist eine Home-Assistant-Integration zur **stabilen, wirtschaftlichen und transparenten** Steuerung von Zendure-SolarFlow-Systemen.
+**Zendure SmartFlow AI** ist eine Home-Assistant-Integration zur **stabilen, wirtschaftlichen und transparenten** Steuerung von **Zendure SolarFlow** Batteriesystemen.
 
-Ab **Version 1.2.x** kombiniert die Integration:
+Ab **Version 1.4.x** kombiniert die Integration:
 
 - ☀️ **PV-Erzeugung**
-- 🏠 **Hauslast (Gesamtverbrauch)**
+- 🏠 **Hauslast (realer Gesamtverbrauch)**
 - 🔋 **Batterie-SoC**
-- 💶 **Dynamische Strompreise (optional, inkl. Vorplanung)**
+- 💶 **Dynamische Strompreise (optional, inkl. intelligenter Vorplanung)**
 
-zu **kontextbasierten Lade- und Entladeentscheidungen**.
+zu **kontextbasierten Lade- und Entladeentscheidungen**, die **stabil**, **vorhersehbar** und **praxisnah** funktionieren.
 
 👉 Ziel ist **nicht maximale Aktivität**, sondern **maximaler Nutzen**:
 - Laden, wenn es wirtschaftlich sinnvoll ist  
@@ -32,16 +32,17 @@ Viele bestehende Lösungen arbeiten mit:
 - festen Zeitplänen
 - starren Preisgrenzen
 - simplen Wenn-Dann-Regeln
+- instabilen Umschaltlogiken (Laden ↔ Entladen)
 
 **Zendure SmartFlow AI** verfolgt bewusst einen anderen Ansatz:
 
 > **Kontext statt Regeln.**
 
 Jede Entscheidung basiert auf der **aktuellen Gesamtsituation**:
-- Wie hoch ist die aktuelle Hauslast?
+- Wie hoch ist die reale Hauslast?
 - Gibt es Netzbezug oder Einspeisung?
 - Wie voll ist der Akku?
-- Wie teuer ist Strom **jetzt** – und **in naher Zukunft**?
+- Wie teuer ist Strom **jetzt** – und **in Kürze**?
 
 ---
 
@@ -60,14 +61,14 @@ Daraus ergeben sich drei mögliche Aktionen:
 - 🔋 **Entladen**
 - ⏸️ **Nichts tun**
 
-Die Logik ist **bewusst nachvollziehbar**:
+Die Logik ist **bewusst erklärbar**:
 - Keine unnötigen Aktionen  
-- Keine verdeckten Automatismen  
+- Keine hektischen Richtungswechsel  
 - Sicherheit & Wirtschaftlichkeit haben Vorrang  
 
 ---
 
-## 🧠 Preis-Vorplanung (ab Version 1.2.0)
+## 🧠 Preis-Vorplanung (ab Version 1.4.x)
 
 ### Was bedeutet Preis-Vorplanung?
 
@@ -75,58 +76,47 @@ Die KI betrachtet **nicht nur den aktuellen Strompreis**, sondern analysiert **k
 
 Ziel:
 
-> **Vor einer bekannten Preisspitze günstig Energie speichern –  
-aber nur, wenn es wirklich sinnvoll ist.**
+> **Vor bekannten Preisspitzen günstig Energie speichern –  
+aber nur dann, wenn es wirklich sinnvoll ist.**
 
 ---
 
 ### Wie funktioniert das?
 
-1. Analyse der kommenden Preisentwicklung  
+1. Analyse der kommenden Preisstruktur  
 2. Erkennung einer relevanten Preisspitze:
    - **sehr teuer** oder  
    - **teuer + konfigurierbare Gewinnmarge**
-3. Bewertung des Zeitraums **vor dieser Spitze**
+3. Bewertung der günstigen Zeitfenster **vor** der Spitze  
 4. Laden aus dem Netz **nur wenn**:
-   - aktuell ein günstiger Zeitraum aktiv ist  
+   - aktuell ein günstiges Zeitfenster aktiv ist  
    - kein relevanter PV-Überschuss vorhanden ist  
    - der Akku nicht voll ist  
 
-➡️ **Kein Dauerladen, kein Zwang, keine Zeitpläne**
+➡️ **Keine Zeitpläne, kein Dauerladen, kein Zwang**
 
 ---
 
-### Wichtig zu wissen
+### Wichtiger Hinweis zu Sensoren
 
-- Preis-Vorplanung ist **situativ**
-- Sie ist **nicht permanent aktiv**
-- Sensoren können korrekt auf **`unknown`** stehen
+Sensoren wie **„Startzeit nächste Aktion“** oder **„Zeitstempel“** können korrekt auf **`unknown`** stehen.
 
-**Beispiele:**
-- Kein Peak in Sicht → keine Planung  
-- Akku voll → keine Planung  
-- PV-Überschuss → Planung pausiert  
-
-➡️ **`unknown` bedeutet „keine Aktion nötig“, nicht „Fehler“.**
+Das bedeutet **keinen Fehler**, sondern:
+- aktuell ist **keine Aktion notwendig**
+- oder es existiert **keine wirtschaftlich sinnvolle Planung**
 
 ---
 
-## ⚡ Extrem teure Strompreise (ab Version 1.2.1)
+## ⚡ Sehr teure Strompreise (Prioritätslogik)
 
-Ab **v1.2.1** haben **extreme Preisspitzen absolute Priorität**.
+Bei **sehr teuren Strompreisen** gilt:
 
-### Sehr-Teuer-Schwelle
-Wird der aktuelle Strompreis **≥ Sehr-Teuer-Schwelle**, dann gilt:
-
-- Entladung hat **immer Vorrang**
-- unabhängig vom Modus (Sommer / Winter / Automatik)
-- unabhängig von PV-Überschuss
-
-### Temporär unbegrenzte Entladung
-In dieser Situation:
-- wird das konfigurierte Entlade-Limit **temporär ignoriert**
-- es wird **genau so viel Leistung abgegeben wie benötigt**
-- begrenzt nur durch die Hardware (max. 2400 W)
+- Entladung hat **absolute Priorität**
+- unabhängig vom Betriebsmodus
+- unabhängig von PV-Ertrag
+- begrenzt nur durch:
+  - SoC-Minimum
+  - Hardware-Grenzen (max. 2400 W)
 
 ➡️ Ziel: **Netzbezug bei extremen Preisen maximal vermeiden**
 
@@ -137,24 +127,25 @@ In dieser Situation:
 ### 🔹 Automatik (empfohlen)
 
 - PV-Überschuss wird genutzt
-- Teurer Strom wird vermieden
 - Preis-Vorplanung aktiv
-- Sehr-teure Preise haben immer Vorrang
+- Entladung bei teurem Strom
+- Sehr teure Preise haben immer Vorrang
 
 ---
 
 ### 🔹 Sommer
 
-- Fokus auf maximale Autarkie
-- Akku deckt Hauslast
-- Sehr-teure Preisspitzen haben Vorrang vor PV-Logik
+- Fokus auf Autarkie
+- Akku deckt Hauslast bei Defizit
+- Keine Preis-Vorplanung
+- Sehr teure Preise haben weiterhin Vorrang
 
 ---
 
 ### 🔹 Winter
 
 - Fokus auf Kostenersparnis
-- Entladung bereits bei „teurem“ Strom
+- Frühere Entladung bei teurem Strom
 - Preis-Vorplanung aktiv
 
 ---
@@ -163,16 +154,16 @@ In dieser Situation:
 
 - Keine KI-Eingriffe
 - Laden / Entladen / Standby manuell
-- Ideal für Tests & Sonderfälle
+- Ideal für Tests und Sonderfälle
 
 ---
 
 ## Sicherheitsmechanismen
 
-### SoC Minimum
+### SoC-Minimum
 - Unterhalb dieses Wertes wird **nicht entladen**
 
-### SoC Maximum
+### SoC-Maximum
 - Oberhalb dieses Wertes wird **nicht weiter geladen**
 
 ---
@@ -181,71 +172,71 @@ In dieser Situation:
 
 - Aktivierung bei kritischem SoC
 - Laden bis mindestens SoC-Minimum
-- Automatisches Beenden
-- Kein Dauer-Notmodus
+- Automatische Deaktivierung
+- Kein Dauer-Notbetrieb
 
 ---
 
-## Entitäten in Home Assistant
+## ⚠️ WICHTIG: Zwingende Voraussetzungen
 
-### Select
-- Betriebsmodus
-- Manuelle Aktion
+Damit die Integration **stabil und korrekt** arbeitet, **müssen** folgende Punkte eingehalten werden.
 
-### Number
-- SoC Minimum / Maximum
-- Max. Ladeleistung
-- Max. Entladeleistung (Normalbetrieb)
-- Notladeleistung
-- Notladung ab SoC
-- Sehr-Teuer-Schwelle
-- Gewinnmarge (%)
+### 1️⃣ Zendure Original-App
 
-### Sensoren
-- Systemstatus
-- KI-Status
-- KI-Empfehlung
-- Entscheidungsgrund
-- **Hauslast (Gesamtverbrauch)**
-- Aktueller Strompreis
-- Ø Ladepreis Akku
-- Gewinn / Ersparnis
-- Preis-Vorplanung aktiv
-- Ziel-SoC Preis-Vorplanung
-- Planungsbegründung
+- **Lade- und Entladeleistung auf max. 2400 W setzen**
+- **HEMS deaktivieren**
+- ggf. vorhandene Stromsensoren **entfernen**
+
+➡️ Die Steuerung erfolgt **ausschließlich** durch Home Assistant.
 
 ---
 
-## Voraussetzungen
+### 2️⃣ Zendure Home-Assistant Integration
 
-- Home Assistant (aktuelle Version)
-- Zendure SolarFlow
-- Batterie-SoC-Sensor
-- PV-Leistungssensor
-- Optional: dynamischer Strompreis-Sensor (z. B. Tibber)
+- **Keinen P1-Sensor auswählen**
+  - ggf. vorausgewählten Sensor **entfernen**
+- **Energie-Export: „Erlaubt“**
+- **Zendure Manager → Betriebsmodus: AUS**
+
+⚠️ Falsche Einstellungen hier führen zu:
+- Entladeabbrüchen
+- falschen Ladezuständen
+- blockierten AC-Modi
+
+---
+
+### 3️⃣ Strompreis-Integration (optional, empfohlen)
+
+Unterstützt werden u. a.:
+
+- **Tibber – Preisinformationen & Bewertungen**
+- **EPEX Spot Preis-Integrationen**
+
+➡️ Beide liefern kompatible Datenformate  
+➡️ Keine zusätzliche Anpassung nötig  
 
 ---
 
 ## Installation
 
-### Über HACS
+### Über HACS (empfohlen)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=PalmManiac&repository=zendure-smartflow-ai&category=integration)
 
-1. HACS muß in Home Assistant installiert sein 
-2. HACS aufrufen und rechts oben auf die 3 Punkte klicken,   
-3. Den Menüpunkt `Benutzerdefinierte Repositories` anklicken 
-4. Im Feld Repository `https://github.com/PalmManiac/zendure-smartflow-ai` einfügen,
-   darunter als `Typ` Integration auswählen und auf `Hinzufügen` klicken.
-5. Nun taucht sie in der HACS-Liste auf und kann installiert werden.
+1. HACS muß in Home Assistant installiert sein  
+2. HACS öffnen → oben rechts **⋮**  
+3. **Benutzerdefinierte Repositories**  
+4. Repository hinzufügen: https://github.com/PalmManiac/zendure-smartflow-ai
+Typ: **Integration**
+5. Integration installieren und Home Assistant neu starten
 
 ---
 
 ## Support & Mitwirkung
 
-- GitHub Issues für Bugs & Feature-Wünsche
-- Pull Requests willkommen
-- Community-Projekt
+- GitHub Issues für Bugs & Feature-Wünsche  
+- Pull Requests willkommen  
+- Community-Projekt  
 
 ---
 
