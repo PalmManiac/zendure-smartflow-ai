@@ -243,8 +243,11 @@ class ZendureSmartFlowSensor(SensorEntity):
 
         # --- TIMESTAMP SENSORS MUST COME FROM TOP-LEVEL ---
         if self.device_class == SensorDeviceClass.TIMESTAMP:
-            value = data.get(key)
-            return value if isinstance(value, str) and value else None
+            val = data.get(key)
+            if isinstance(val, str) and "T" in val:
+                return val
+            return None
+
 
         # --- Numeric & enum values from details ---
         if key in (
