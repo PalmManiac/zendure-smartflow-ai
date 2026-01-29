@@ -1,425 +1,104 @@
-# Zendure SmartFlow AI – Anleitung  
-Version: 1.4.x  
-Stand: 27.01.2026  
+## 🧠 Preis-Vorplanung (ab Version 1.4.x)
 
-> Diese Anleitung erklärt **nicht nur was** die Integration tut, sondern vor allem **wie und warum** die KI entscheidet.  
-> Ziel: Du sollst jederzeit nachvollziehen können, **warum** gerade geladen, entladen oder Standby ist –  
-> und wie du dieses Verhalten gezielt beeinflussen kannst.
+### Was bedeutet Preis-Vorplanung?
 
----
-
-## Inhaltsverzeichnis
-
-1. Überblick: Was macht die KI wirklich?
-2. Datenquellen: Welche Sensoren werden gelesen?
-3. Zentrale Begriffe & Zustände
-4. Entscheidungs-Engine: Prioritäten & Ablauf
-5. Delta-Regelung (neues Herzstück)
-6. Notladung (Safety & Verriegelung)
-7. Betriebsmodi im Detail
-8. Manuelle Aktion
-9. Preislogik & Preis-Vorplanung
-10. PV-Überschuss-Laden
-11. Entladen zur Defizitdeckung
-12. Leistungs-Limits & Hardwaregrenzen
-13. Sehr teure Strompreise (Very Expensive)
-14. Zendure-Ansteuerung (AC-Modus)
-15. Transparenz & Debugging
-16. Entscheidungsgrund (`decision_reason`)
-17. Typische Szenarien
-18. Häufige Stolperfallen
-19. Zusammenfassung
-
----
-
-## 1) Überblick: Was macht die KI wirklich?
-
-Die Integration läuft zyklisch (Update-Intervall) und trifft **in jedem Zyklus eine vollständige Entscheidung**:
-
-- AC-Modus (Input / Output)
-- Ladeleistung (Input-Limit)
-- Entladeleistung (Output-Limit)
-
-Die Entscheidung basiert auf:
-
-- Batterie-SoC
-- PV-Leistung
-- realer Hauslast
-- Netzbezug / Einspeisung
-- Strompreis (jetzt & Zukunft)
-- Benutzer-Einstellungen
-- interner Persistenz (z. B. Preis-Latch, Notladung)
-
-Die KI ist **deterministisch**:
-
-> Gleiche Situation → gleiche Entscheidung.
-
----
-
-## 2) Datenquellen
-
-### Pflicht
-- Batterie-SoC (%)
-- PV-Leistung (W)
-
-### Optional
-- Strompreis „Jetzt“
-- Strompreis-Zeitreihe (z. B. Tibber oder EPEX)
-- Grid-Daten:
-  - SINGLE (ein Sensor)
-  - SPLIT (Import + Export getrennt)
-
-### Zendure-Steuerung
-- AC-Mode (Select)
-- Input-Limit (Number)
-- Output-Limit (Number)
-
----
-
-## 3) Zentrale Begriffe & Zustände
-
-### Hauslast (entscheidend!)
-Hauslast ist der **tatsächliche Gesamtverbrauch des Hauses**.
-
-Sie wird **nicht** direkt gemessen, sondern korrekt hergeleitet:
-
-- Netzbezug
-- plus Eigenverbrauch (PV + Akku)
-- minus Einspeisung
-
-Damit kennt die KI immer die **echte Last**, unabhängig davon,  
-ob sie gerade aus PV, Akku oder Netz gedeckt wird.
-
----
-
-## 4) Entscheidungs-Engine: Prioritäten & Ablauf
-
-Die KI arbeitet **streng prioritätsbasiert**.  
-Eine niedrigere Regel kann **niemals** eine höhere überschreiben.
-
-Prioritäten (von oben nach unten):
-
-1. Notladung (Safety, verriegelt)
-2. Manueller Modus
-3. Preis-Vorplanung (Netzladen)
-4. Sehr teure Preise (Zwangsentladung)
-5. PV-Überschuss-Laden
-6. Preisbasierte Entladung
-7. Standby
-
-### Diagramm – Entscheidungsfluss
-
-```mermaid
-flowchart TD
-    A[Start Zyklus] --> B{Sensoren gültig?}
-
-    B -- nein --> Z[Standby / SENSOR_INVALID]
-
-    B -- ja --> C{Notladung aktiv<br/>oder SoC kritisch?}
-    C -- ja --> D[Notladung:<br/>Laden bis SoC-Min]
-
-    C -- nein --> E{Manueller Modus?}
-    E -- ja --> F[Manuelle Aktion]
-
-    E -- nein --> G{Preis-Vorplanung aktiv?}
-    G -- ja --> H[Netzladen vor Preisspitze]
-
-    G -- nein --> I{Sehr teurer Strom?}
-    I -- ja --> J[Zwangsentladung<br/>Delta-Regelung]
-
-    I -- nein --> K{PV-Überschuss?}
-    K -- ja --> L[PV-Überschuss laden]
-
-    K -- nein --> M{Teuer & Defizit?}
-    M -- ja --> N[Preisbasierte Entladung<br/>Delta-Regelung]
-
-    M -- nein --> O[Standby]
-```
-
----
-
-## 5) Delta-Regelung (zentrales neues Konzept)
-
-Die **Delta-Regelung** ist das Herzstück der neuen Version.
-
-### Ziel
-> Netzbezug **nahe 0 W halten**,  
-> ohne Umschalten zwischen Laden ↔ Entladen.
-
-### Grundidee
-Die KI arbeitet **inkrementell**:
-
-- Sie merkt sich die letzte Entladeleistung
-- betrachtet den aktuellen Netzbezug (+) oder die Einspeisung (−)
-- passt die Entladeleistung **schrittweise** an
-
-Kein Springen.  
-Kein Umschalten auf „Laden“.  
-Kein Pendeln.
-
----
-
-### Zielwert
-Die Regelung lässt bewusst einen kleinen Netzbezug stehen:
-
-- Ziel-Netzbezug: ca. **30–40 W**
-
-Warum?
-- Messrauschen
-- Phasenverschiebung
-- Trägheit der Hardware
-
-So bleibt der AC-Modus **stabil auf OUTPUT**.
-
----
-
-### Verhalten bei Netzimport
-- Import steigt → Entladeleistung wird erhöht
-- aber **gedeckelt** und **schrittweise**
-
-### Verhalten bei Einspeisung
-- Einspeisung erkannt → Entladeleistung wird reduziert
-- **niemals sofort auf 0**
-- kein automatisches Umschalten auf Laden
-
-### Diagramm – Delta-Regelung
-
-```mermaid
-flowchart TD
-    A[Netzleistung messen] --> B{Netzimport oder Einspeisung?}
-
-    B -- Import --> C[Import > Zielwert ~35 W?]
-    C -- ja --> D[Entladeleistung erhöhen kleiner Schritt]
-    C -- nein --> E[Feinjustierung Leistung halten]
-
-    B -- Einspeisung --> F[Einspeisung > Toleranz?]
-    F -- ja --> G[Entladeleistung reduzieren starker Schritt]
-    F -- nein --> E
-
-    D --> H[Begrenzen auf Max-Entladeleistung]
-    G --> H
-    E --> H
-
-    H --> I[OUTPUT bleibt aktiv, kein Umschalten auf Laden]
-```
-
----
-
-## 6) Notladung (Safety)
-
-### Trigger
-- SoC ≤ „Notladung ab SoC“
-
-### Verhalten
-- Notladung wird **verriegelt**
-- Entladen = 0 W
-- Laden bis mindestens **SoC-Minimum**
-
-### Ende
-- Erst wenn SoC ≥ SoC-Minimum
-- kein manuelles Beenden nötig
-
----
-
-## 7) Betriebsmodi im Detail
-
-### Automatik (empfohlen)
-- PV-Überschuss laden
-- Preis-Vorplanung aktiv
-- Entladen bei teurem Strom
-- Delta-Regelung aktiv
-- Sehr teuer hat absolute Priorität
-
-### Sommer
-- Fokus Autarkie
-- Entladen bei Defizit
-- Preislogik deaktiviert
-- Delta-Regelung aktiv
-
-### Winter
-- Fokus Kostenersparnis
-- Frühere Entladung bei teuerem Strom
-- Preis-Vorplanung aktiv
-
-### Manuell
-- KI vollständig deaktiviert
-- Nur die manuelle Aktion zählt
-
----
-
-## 8) Manuelle Aktion
-
-### Standby
-- Laden 0 W
-- Entladen 0 W
-
-### Laden
-- Laden mit Max-Leistung
-- Preise & PV werden ignoriert
-
-### Entladen
-- Delta-Regelung deckt Defizit
-- Kein Umschalten auf Laden
-
----
-
-## 9) Preislogik & Preis-Vorplanung
-
-Die Preis-Vorplanung analysiert:
-- kommende Preisspitzen
-- günstige Zeitfenster davor
+Die KI betrachtet **nicht nur den aktuellen Strompreis**, sondern analysiert **kommende Preisspitzen** im Tagesverlauf.
 
 Ziel:
-> Akku **gezielt** vor teuren Phasen laden.
 
-### Diagramm – Preis-Vorplanung
+> **Vor bekannten Preisspitzen günstig Energie speichern –
+aber nur dann, wenn es wirklich sinnvoll ist.**
 
-```mermaid
-flowchart TD
-    A[Preisdaten vorhanden] --> B[Zukünftige Preise analysieren]
+### Wie funktioniert das?
 
-    B --> C{Preisspitze erkannt?}
-    C -- nein --> Z[Keine Planung]
+1. Analyse der kommenden Preisstruktur
+2. Erkennung einer relevanten Preisspitze:
+   - **sehr teuer** oder
+   - **teuer + konfigurierbare Gewinnmarge**
+3. Bewertung der günstigen Zeitfenster **vor** der Spitze
+4. Laden aus dem Netz **nur wenn**:
+   - aktuell ein günstiges Zeitfenster aktiv ist
+   - kein relevanter PV-Überschuss vorhanden ist
+   - der Akku nicht voll ist
 
-    C -- ja --> D[Peak-Zeit & Preis bestimmen]
-    D --> E[Gewinnmarge anwenden]
-    E --> F[Zielpreis berechnen]
-
-    F --> G{Aktueller Preis ≤ Zielpreis?}
-    G -- ja --> H[Netzladen erlauben]
-    G -- nein --> I[Warten auf günstiges Fenster]
-
-    H --> J[Akku bis Ziel-SoC laden]
-```
+➡️ **Keine Zeitpläne, kein Dauerladen, kein Zwang**
 
 ---
 
-## 10) PV-Überschuss-Laden
+## ⚡ Sehr teure Strompreise (Prioritätslogik)
 
-Voraussetzungen:
-- realer PV-Überschuss
-- SoC < SoC-Maximum
-- keine aktive Entladung
+Bei **sehr teuren Strompreisen** gilt:
 
-Ladeleistung:
-- Minimum aus
-  - PV-Überschuss
-  - Max-Ladeleistung
+- Entladung hat **absolute Priorität**
+- unabhängig vom Betriebsmodus
+- unabhängig von PV-Ertrag
+- begrenzt nur durch:
+  - SoC-Minimum
+  - Hardware-Grenzen (max. 2400 W)
 
----
-
-## 11) Entladen zur Defizitdeckung
-
-- Defizit = Hauslast > PV
-- Entladung wird **dynamisch geregelt**
-- Ziel: Netzbezug ≈ 30–40 W
+➡️ Ziel: **Netzbezug bei extremen Preisen maximal vermeiden**
 
 ---
 
-## 12) Leistungs-Limits
+## Sicherheitsmechanismen
 
-### Max. Ladeleistung
-- PV-Laden
-- Netzladen
-- Notladung
+### SoC-Minimum
+- Unterhalb dieses Wertes wird **nicht entladen**
 
-### Max. Entladeleistung
-- Normalbetrieb
-- Preisentladung
-- Manuell
+### SoC-Maximum
+- Oberhalb dieses Wertes wird **nicht weiter geladen**
 
 ---
 
-## 13) Sehr teure Strompreise (Very Expensive)
+## 🧯 Notladefunktion (verriegelt)
 
-Wenn:
-- Preis ≥ Sehr-teuer-Schwelle
-
-Dann:
-- Entladung immer aktiv
-- Modus egal
-- Delta-Regelung bleibt aktiv
-- Limit wird **temporär ignoriert**
-- Hardwaregrenze (~2400 W) gilt
+- Aktivierung bei kritischem SoC
+- Laden bis mindestens SoC-Minimum
+- Automatische Deaktivierung
+- Kein Dauer-Notbetrieb
 
 ---
 
-## 14) Zendure-Ansteuerung
+## ⚠️ WICHTIG: Zwingende Voraussetzungen
 
-Pro Zyklus:
-- AC-Mode
-- Input-Limit
-- Output-Limit
+Damit die Integration **stabil und korrekt** arbeitet, **müssen** folgende Punkte eingehalten werden.
 
-Grundregel:
-- INPUT → Output = 0
-- OUTPUT → Input = 0
+### 1️⃣ Zendure Original-App
 
----
+- **Lade- und Entladeleistung auf max. 2400 W setzen**
+- **HEMS deaktivieren**
+- ggf. vorhandene Stromsensoren **entfernen**
 
-## 15) Transparenz & Debugging
+➡️ Die Steuerung erfolgt **ausschließlich** durch Home Assistant.
 
-Sensoren:
-- KI-Status
-- Empfehlung
-- Entscheidungsgrund
-- Hauslast
-- Ø Ladepreis
-- Gewinn
+### 2️⃣ Zendure Home-Assistant Integration
 
-Alle internen Werte stehen im `details`-Attribut.
+- **Keinen P1-Sensor auswählen**
 
----
+  <img width="445" height="361" alt="ZHA-Konfig" src="images/zha_konfig.png" />
 
-## 16) Entscheidungsgrund (`decision_reason`)
+  - ggf. vorausgewählten Sensor **entfernen**
 
-Der Sensor zeigt **exakt**, welche Regel aktiv ist.
+- **Energie-Export: „Erlaubt“**
 
-Beispiele:
-- `price_based_discharge`
-- `very_expensive_force_discharge`
-- `delta_discharge_adjust`
-- `planning_charge_before_peak`
-- `standby_no_condition_met`
+  <img width="345" height="660" alt="ZHA-Einstellung" src="images/zha_einstellung.png" />
 
----
+- **Zendure Manager → Betriebsmodus: AUS**
 
-## 17) Typische Szenarien
+  <img width="343" height="590" alt="ZHA Manager" src="images/zha_manager.png" />
 
-### Diagramm – Alltagsszenarien
 
-```mermaid
-flowchart TD
-    A[PV-Mittag] --> B[PV-Überschuss laden]
+⚠️ Falsche Einstellungen hier führen zu:
+- Entladeabbrüchen
+- falschen Ladezuständen
+- blockierten AC-Modi
 
-    C[Abend / teuer] --> D[Akku entlädt<br/>Delta-Regelung]
+### 3️⃣ Strompreis-Integration (optional, empfohlen)
 
-    E[Sehr teuer] --> F[Zwangsentladung<br/>Modusunabhängig]
+Unterstützt werden u. a.:
 
-    G[SoC kritisch] --> H[Notladung aktiviert]
+- **Tibber – Preisinformationen & Bewertungen**
+- **EPEX Spot Preis-Integrationen**
 
-    H --> I[Laden bis SoC-Min]
-```
-
----
-
-## 18) Häufige Stolperfallen
-
-- Energie-Export nicht erlaubt
-- Zendure Manager nicht auf AUS
-- P1-Sensor gesetzt
-- Erwartung: permanentes Entladen
-
----
-
-## 19) Zusammenfassung
-
-Die neue KI ist:
-
-- stabil
-- inkrementell
-- nicht pendelnd
-- preis- und lastbewusst
-- vollständig erklärbar
-
-**Kein Raten. Keine Magie. Nur saubere Regelung.**
+➡️ Beide liefern kompatible Datenformate
+➡️ Keine zusätzliche Anpassung nötig
