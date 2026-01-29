@@ -1171,15 +1171,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             prev_soc = self._persist.get("prev_soc")
 
             SOC_EPS = 0.2
+
+            # Robust reset: sobald SoC den unteren Bereich erreicht, ist der Trade-Zyklus beendet
             if (
                 prev_soc is not None
                 and float(prev_soc) > float(soc_min) + SOC_EPS
                 and float(soc) <= float(soc_min) + SOC_EPS
-                and ac_mode == ZENDURE_MODE_OUTPUT
-                and out_w_f > 0.0
             ):
                 avg_charge_price = None
                 trade_charged_kwh = 0.0
+
+                # optional: auch in persist sofort spiegeln (hilft gegen Race Conditions / spätere Entscheidungen)
+                self._persist["trade_avg_charge_price"] = None
+                self._persist["trade_charged_kwh"] = 0.0
 
             if ac_mode == ZENDURE_MODE_INPUT and in_w_f > 0.0:
                 e_kwh = (in_w_f * dt_s) / 3600000.0
