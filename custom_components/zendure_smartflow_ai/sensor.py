@@ -38,6 +38,7 @@ PLANNING_STATUS_ENUMS = [
     "planning_peak_detected_insufficient_window",
     "planning_waiting_for_cheap_window",
     "planning_charge_now",
+    "planning_discharge_planned",
     "planning_last_chance",
 ]
 
