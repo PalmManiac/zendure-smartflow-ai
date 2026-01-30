@@ -264,10 +264,12 @@ class ZendureSmartFlowSensor(SensorEntity):
             return None
 
         # --- Numeric & enum values from details ---
+        if key == "avg_charge_price":
+            val = details.get(key)
+            return float(val) if val is not None else 0.0
         if key in (
             "house_load",
             "price_now",
-            "avg_charge_price",
             "profit_eur",
             "planning_status",
             "planning_active",
