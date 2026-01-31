@@ -154,7 +154,7 @@
       "winter": "Winter",
       "manual": "Manuell"
     },
-    "select.zendure_smartflow_ai.manual_action": {
+    "select.zendure_smartflow_ai__manual_action": {
       "standby": "Standby",
       "charge": "Laden",
       "discharge": "Entladen"
