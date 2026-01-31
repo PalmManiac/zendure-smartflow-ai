@@ -148,13 +148,13 @@
   },
 
   "state": {
-    "select.zendure_smartflow_ai__ai_mode": {
+    "zendure_smartflow_ai__ai_mode": {
       "automatic": "Automatik",
       "summer": "Sommer",
       "winter": "Winter",
       "manual": "Manuell"
     },
-    "select.zendure_smartflow_ai__manual_action": {
+    "zendure_smartflow_ai__manual_action": {
       "standby": "Standby",
       "charge": "Laden",
       "discharge": "Entladen"
