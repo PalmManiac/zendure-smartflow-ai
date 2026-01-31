@@ -137,7 +137,7 @@
   },
 
   "state": {
-    "select.zendure_smartflow_ai.ai_mode": {
+    "select.zendure_smartflow_ai__ai_mode": {
       "automatic": "Automatik",
       "summer": "Sommer",
       "winter": "Winter",
