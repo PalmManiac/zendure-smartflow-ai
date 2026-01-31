@@ -1,11 +1,22 @@
 {
-  "title": "Zendure SmartFlow AI",
-
   "config": {
     "step": {
       "user": {
         "title": "Zendure SmartFlow AI einrichten",
-        "description": "Verknüpfe deine Zendure- und Energiesensoren für eine intelligente, stabile Akku-Steuerung."
+        "description": "Wähle die benötigten Sensoren aus",
+        "data": {
+          "soc_entity": "Batterie-SoC Sensor",
+          "pv_entity": "PV-Leistung Sensor",
+          "price_now_entity": "Aktueller Strompreis",
+          "price_export_entity": "Preisverlauf (z. B. Tibber / EPEX)",
+          "grid_mode": "Netzmessung",
+          "grid_power_entity": "Netzleistung (Single)",
+          "grid_import_entity": "Netzbezug (Split)",
+          "grid_export_entity": "Netzeinspeisung (Split)",
+          "ac_mode_entity": "Zendure AC-Modus",
+          "input_limit_entity": "Zendure Ladeleistung",
+          "output_limit_entity": "Zendure Entladeleistung"
+        }
       }
     }
   },
