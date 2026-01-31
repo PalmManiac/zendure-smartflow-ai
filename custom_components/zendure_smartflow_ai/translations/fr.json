@@ -1,11 +1,22 @@
 {
-  "title": "Zendure SmartFlow AI",
-
   "config": {
     "step": {
       "user": {
         "title": "Configurer Zendure SmartFlow AI",
-        "description": "Connectez vos capteurs Zendure et énergétiques pour une gestion intelligente et stable de la batterie."
+        "description": "Sélectionnez les capteurs et entités requis",
+        "data": {
+          "soc_entity": "Capteur SoC de la batterie",
+          "pv_entity": "Capteur de puissance PV",
+          "price_now_entity": "Prix actuel de l'électricité",
+          "price_export_entity": "Prévision des prix (ex. Tibber / EPEX)",
+          "grid_mode": "Mode de mesure du réseau",
+          "grid_power_entity": "Puissance réseau (simple)",
+          "grid_import_entity": "Import réseau (séparé)",
+          "grid_export_entity": "Export réseau (séparé)",
+          "ac_mode_entity": "Mode AC Zendure",
+          "input_limit_entity": "Puissance de charge Zendure",
+          "output_limit_entity": "Puissance de décharge Zendure"
+        }
       }
     }
   },
@@ -137,13 +148,13 @@
   },
 
   "state": {
-    "select.zendure_smartflow_ai.ai_mode": {
+    "select.zendure_smartflow_ai__ai_mode": {
       "automatic": "Automatique",
       "summer": "Été",
       "winter": "Hiver",
       "manual": "Manuel"
     },
-    "select.zendure_smartflow_ai.manual_action": {
+    "select.zendure_smartflow_ai__manual_action": {
       "standby": "Veille",
       "charge": "Charger",
       "discharge": "Décharger"
