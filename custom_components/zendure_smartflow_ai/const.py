@@ -10,7 +10,7 @@ DOMAIN = "zendure_smartflow_ai"
 INTEGRATION_NAME = "Zendure SmartFlow AI"
 INTEGRATION_MANUFACTURER = "PalmManiac"
 INTEGRATION_MODEL = "Home Assistant Integration"
-INTEGRATION_VERSION = "1.4.3"
+INTEGRATION_VERSION = "1.4.4"
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
