@@ -1182,6 +1182,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 trade_charged_kwh = 0.0
 
                 # optional: auch in persist sofort spiegeln (hilft gegen Race Conditions / spätere Entscheidungen)
+                self._persist["avg_charge_price"] = None
                 self._persist["trade_avg_charge_price"] = None
                 self._persist["trade_charged_kwh"] = 0.0
 
