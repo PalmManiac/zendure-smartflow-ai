@@ -1198,12 +1198,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._persist["trade_avg_charge_price"] = None
                 self._persist["trade_charged_kwh"] = 0.0
 
-            # --- New: block price-planning charge immediatly after soc_min ---
-            if price_now is not none:
-                self._persist["block_planning_charge_until_price"] = float(price_now)
-            else:
-                self._persist["block_planning_charge_until_price"] = None
-
             if ac_mode == ZENDURE_MODE_INPUT and in_w_f > 0.0:
                 e_kwh = (in_w_f * dt_s) / 3600000.0
                 charged_kwh += e_kwh
