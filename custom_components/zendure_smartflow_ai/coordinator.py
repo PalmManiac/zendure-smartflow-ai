@@ -793,11 +793,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Discharge only close to peak (next 30 min)
             elif (
                 ai_mode == AI_MODE_AUTOMATIC
-                and planning.get("action") == "discharge"
-                and planning.get("status") == "planning_discharge_planned"
-                and planning.get("next_peak") is not None
+                and planning.get("action") == "charge"
+                and planning.get("status") == "planning_charge_now"
+                and soc < float(planning.get("target_soc") or soc_max)
                 and not self._persist.get("emergency_active")
+                and (
+                    self._persist.get("block_planning_charge_until_price") is None
+                    or price_now is None
+                    or price_now < self._persist["block_planning_charge_until_price"]
+                )
             ):
+
                 peak_dt = dt_util.parse_datetime(str(planning["next_peak"]))
                 if peak_dt:
                     secs_to_peak = (peak_dt - now).total_seconds()
@@ -932,6 +938,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if power_state == "charging" and (soc >= soc_max or surplus <= 0.0):
                     power_state = "idle"
                     self._persist["power_state"] = "idle"
+
+                    # FIX: reset input limit when leaving charging
+                    in_w = 0.0
+                    self._persist["last_set_input_w"] = None
 
                 # Stop discharging when no deficit / no load / soc too low
                 # --- HARD GUARD: never auto-switch to charging while discharging ---
@@ -1180,11 +1190,19 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ):
                 avg_charge_price = None
                 trade_charged_kwh = 0.0
+                # FIX: block immediate planning charge after soc_min
+                self._persist["block_planning_charge_until_price"] = price_now
 
                 # optional: auch in persist sofort spiegeln (hilft gegen Race Conditions / spätere Entscheidungen)
                 self._persist["avg_charge_price"] = None
                 self._persist["trade_avg_charge_price"] = None
                 self._persist["trade_charged_kwh"] = 0.0
+
+            # --- New: block price-planning charge immediatly after soc_min ---
+            if price_now is not none:
+                self._persist["block_planning_charge_until_price"] = float(price_now)
+            else:
+                self._persist["block_planning_charge_until_price"] = None
 
             if ac_mode == ZENDURE_MODE_INPUT and in_w_f > 0.0:
                 e_kwh = (in_w_f * dt_s) / 3600000.0
