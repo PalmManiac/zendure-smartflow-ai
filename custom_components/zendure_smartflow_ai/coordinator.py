@@ -778,6 +778,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and planning.get("status") == "planning_charge_now"
                 and soc < float(planning.get("target_soc") or soc_max)
                 and not self._persist.get("emergency_active")
+                and (
+                    self._persist.get("block_planning_charge_until_price") is None
+                    or price_now is None
+                    or price_now < self._persist["block_planning_charge_until_price"]
+                )
             ):
                 planning_override = True
                 self._persist["planning_active"] = True
@@ -793,16 +798,35 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Discharge only close to peak (next 30 min)
             elif (
                 ai_mode == AI_MODE_AUTOMATIC
-                and planning.get("action") == "charge"
-                and planning.get("status") == "planning_charge_now"
-                and soc < float(planning.get("target_soc") or soc_max)
+                and planning.get("action") == "discharge"
+                and planning.get("status") == "planning_discharge_planned"
+                and planning.get("next_peak") is not None
                 and not self._persist.get("emergency_active")
-                and (
-                    self._persist.get("block_planning_charge_until_price") is None
-                    or price_now is None
-                    or price_now < self._persist["block_planning_charge_until_price"]
-                )
             ):
+                peak_dt = dt_util.parse_datetime(str(planning["next_peak"]))
+                if peak_dt:
+                    secs_to_peak = (peak_dt - now).total_seconds()
+                    if 0 <= secs_to_peak <= 1800 and soc > soc_min:
+                        planning_override = True
+                        self._persist["planning_active"] = True
+
+                        ac_mode = ZENDURE_MODE_OUTPUT
+                        in_w = 0.0
+
+                        prev_out = float(self._persist.get("discharge_target_w") or 0.0)
+                        out_w = self._delta_discharge_w(
+                            deficit_w=net_grid_w,
+                            prev_out_w=prev_out,
+                            max_discharge=max_discharge,
+                            soc=soc,
+                            soc_min=soc_min,
+                        )
+                        self._persist["discharge_target_w"] = float(out_w)
+
+                        recommendation = RECO_DISCHARGE
+                        decision_reason = "planning_discharge_peak"
+                        self._persist["power_state"] = "discharging"
+                        power_state = "discharging"
 
                 peak_dt = dt_util.parse_datetime(str(planning["next_peak"]))
                 if peak_dt:
