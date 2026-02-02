@@ -931,7 +931,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 recommendation = RECO_STANDBY
                 decision_reason = "price_discharge_exit"
                 power_state = "idle"
-             
+
             # 3) automatic state machine (only if planning is NOT overriding)
             elif ai_mode != AI_MODE_MANUAL and not planning_override:
                 # State transitions
