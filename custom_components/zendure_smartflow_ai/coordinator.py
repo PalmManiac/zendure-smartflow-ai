@@ -635,7 +635,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             manual_action = self.runtime_mode.get("manual_action", MANUAL_STANDBY)
 
-            deficit_raw_val, surplus_raw_val = self._get_grid()
+            grid = self._get_grid()
+
+            if not isinstance(grid, tuple) or len(grid) != 2:
+                _LOGGER.error("Invalid grid data returned: %s", grid)
+                deficit_raw_val, surplus_raw_val = None, None
+            else:
+                deficit_raw_val, surplus_raw_val = grid
             price_now = self._get_price_now()
 
             deficit_raw = float(deficit_raw_val) if deficit_raw_val is not None else 0.0
