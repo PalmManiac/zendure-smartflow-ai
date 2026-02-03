@@ -369,38 +369,56 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not isinstance(item, dict):
                 continue
 
-            ts = (
+            start = (
                 item.get("start_time")
                 or item.get("starts_at")
                 or item.get("start")
                 or item.get("time")
             )
+            end = item.get("end_time") or item.get("ends_at")
+
             p = _to_float(item.get("price_per_kwh"), None)
-            if not ts or p is None:
+            if not start or p is None:
                 continue
 
-            t = dt_util.parse_datetime(str(ts))
-            if not t:
+            t_start = dt_util.parse_datetime(str(start))
+            if not t_start:
                 continue
 
-            if t >= now:
-                future.append((t, float(p)))
+            # --- Tibber fallback: kein end_time → Slotdauer schätzen ---
+            if end:
+                t_end = dt_util.parse_datetime(str(end))
+                if not t_end:
+                    continue
+            else:
+                # Tibber / generisch: 15-Minuten-Slot annehmen
+                t_end = t_start + timedelta(minutes=15)
+
+            # Slot muss noch (teilweise) in der Zukunft liegen
+            if t_end <= now:
+                continue
+
+            future.append((t_start, t_end, float(p)))
 
         if len(future) < 8:
             result.update(status="planning_no_price_data", blocked_by="price_data")
             return result
 
-        peak_time, peak_price = max(future, key=lambda x: x[1])
+        # Peak = Slot mit höchstem Preis
+        peak_start, peak_end, peak_price = max(
+            future,
+            key=lambda x: x[2]
+        )
 
-        if float(peak_price) < float(expensive) and float(peak_price) < float(very_expensive):
+        if peak_price < float(expensive) and peak_price < float(very_expensive):
             result.update(status="planning_no_peak_detected", blocked_by=None)
             return result
 
-        if float(peak_price) >= float(very_expensive) and soc > soc_min:
+        if peak_price >= float(very_expensive) and soc > soc_min:
             result.update(
                 action="discharge",
                 status="planning_discharge_planned",
-                next_peak=peak_time.isoformat(),
+                next_peak=peak_start.isoformat(),
                 reason="discharge_during_price_peak",
                 target_soc=soc_min,
             )
@@ -409,12 +427,20 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         margin = max(float(profit_margin_pct or 0.0), 0.0) / 100.0
         target_price = float(peak_price) * (1.0 - margin)
 
-        pre_peak = [(t, p) for (t, p) in future if t < peak_time]
+        pre_peak = [
+            (s, e, p)
+            for (s, e, p) in future
+            if e <= peak_start
+        ]
         if len(pre_peak) < 4:
             result.update(status="planning_peak_detected_insufficient_window", blocked_by="price_data")
             return result
 
-        cheap_slots = [(t, p) for (t, p) in pre_peak if float(p) <= float(target_price)]
+        cheap_slots = [
+            (s, e, p)
+            for (s, e, p) in pre_peak
+            if p <= target_price
+        ]
         if not cheap_slots:
             result.update(
                 status="planning_waiting_for_cheap_window",
@@ -424,18 +450,24 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             return result
 
+        # letzter günstiger Slot vor dem Peak
+        last_cheap_start, last_cheap_end, last_cheap_price = max(
+            cheap_slots,
+            key=lambda x: x[0]
+        )
+
         latest_cheap_time, _latest_cheap_price = max(cheap_slots, key=lambda x: x[0])
         target_soc = min(float(soc_max), float(soc) + 30.0)
 
-        if float(price_now) <= float(target_price):
+        if is_within_cheap_window:
             watts = max(float(max_charge), 0.0)
             result.update(
                 action="charge",
                 watts=watts,
                 status="planning_charge_now",
-                next_peak=peak_time.isoformat(),
+                next_peak=peak_start.isoformat(),
                 reason="charge_before_price_peak",
-                latest_start=latest_cheap_time.isoformat(),
+                latest_start=last_cheap_start.isoformat(),
                 target_soc=target_soc,
             )
             return result
