@@ -456,6 +456,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             key=lambda x: x[0]
         )
 
+        # --- FIX #4: Zeitfenster-basierte Entscheidung (EPEX & Tibber) ---
+        is_within_cheap_window = (
+            last_cheap_start <= now < last_cheap_end
+        )
+
         latest_cheap_time, _latest_cheap_price = max(cheap_slots, key=lambda x: x[0])
         target_soc = min(float(soc_max), float(soc) + 30.0)
 
