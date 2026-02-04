@@ -1273,7 +1273,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 is_trading_charge = (
                     recommendation == RECO_CHARGE
                     and ai_mode != AI_MODE_MANUAL
-                    and decision_reason not in ("emergency_latched_charge", "manual_charge")
+                    and decision_reason != "emergency_latched_charge"
                 )
                 if is_trading_charge and c_price is not None:
                     trade_charged_kwh += e_kwh
