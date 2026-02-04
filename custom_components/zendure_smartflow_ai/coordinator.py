@@ -1270,12 +1270,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 charged_kwh += e_kwh
 
                 c_price = price_now
-                is_trading_charge = (
-                    recommendation == RECO_CHARGE
-                    and ai_mode != AI_MODE_MANUAL
+                is_grid_charge = (
+                    ac_mode == ZENDURE_MODE_INPUT
+                    and in_w_f > 0.0
                     and decision_reason != "emergency_latched_charge"
                 )
-                if is_trading_charge and c_price is not None:
+                if is_grid_charge and c_price is not None:
                     trade_charged_kwh += e_kwh
                     if avg_charge_price is None:
                         avg_charge_price = float(c_price)
