@@ -508,8 +508,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drives grid import close to a small target (avoids export / oscillation).
         """
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
-        TARGET_IMPORT_W = 35.0
-        DEADBAND_W = 40.0
+        TARGET_IMPORT_W = 15.0
+        DEADBAND_W = 20.0
 
         # Anti-Export Guard: ab dieser Einspeisung wird aggressiv reduziert
         EXPORT_GUARD_W = 45.0   # ab ~35W Export sofort deutlich runter
@@ -532,10 +532,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         err = net - TARGET_IMPORT_W  # + => Import zu hoch => mehr entladen, - => zu wenig Import => weniger entladen
 
         # schneller hoch, deutlich schneller runter als vorher
-        KP_UP = 0.55
-        KP_DOWN = 0.95
-        MAX_STEP_UP = 450.0
-        MAX_STEP_DOWN = 900.0
+        KP_UP = 0.35
+        KP_DOWN = 0.55
+        MAX_STEP_UP = 180.0
+        MAX_STEP_DOWN = 300.0
 
         if err > DEADBAND_W:
             step = min(MAX_STEP_UP, max(40.0, KP_UP * err))
@@ -544,14 +544,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             step = min(MAX_STEP_DOWN, max(60.0, KP_DOWN * abs(err)))
             out_w -= step
         else:
-            # in der Deadband: minimal Richtung Ziel
-            out_w -= 15.0
+            # in der Deadband: HALTEN, nicht abbauen
+            out_w = out_w
 
         out_w = max(0.0, min(float(max_discharge), out_w))
 
         # 3) Optional: nur wirklich bei quasi 0 Import ausmachen (nicht bei 20-30W!)
-        if allow_zero and deficit_w <= 15.0:
-            out_w = max(out_w, 60.0)  # keep OUTPUT alive
+        if allow_zero and deficit_w <= 10.0:
+            out_w = max(out_w, 30.0)  # keep OUTPUT alive
 
         return float(out_w)
 
