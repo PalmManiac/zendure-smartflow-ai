@@ -7,5 +7,5 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/PalmManiac/zendure-smartflow-ai/issues",
   "requirements": [],
-  "version": "1.4.5-Beta6"
+  "version": "1.4.5"
 }
