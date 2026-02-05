@@ -340,6 +340,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "target_soc": None,
         }
 
+        # FIX #1: defensive init, damit wir nie in einen NameError laufen
+        peak_start: Any | None = None
+        peak_end: Any | None = None
+        peak_price: float | None = None
+
         if ai_mode != AI_MODE_AUTOMATIC:
             result.update(status="planning_inactive_mode", blocked_by="mode")
             return result
@@ -445,7 +450,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             result.update(
                 status="planning_waiting_for_cheap_window",
                 blocked_by="price_data",
-                next_peak=peak_time.isoformat(),
+                next_peak=peak_start.isoformat(),
                 reason="waiting_for_cheap_price",
             )
             return result
@@ -461,7 +466,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             last_cheap_start <= now < last_cheap_end
         )
 
-        latest_cheap_time, _latest_cheap_price = max(cheap_slots, key=lambda x: x[0])
+        latest_cheap_time, _, _ = max(cheap_slots, key=lambda x: x[0])
         target_soc = min(float(soc_max), float(soc) + 30.0)
 
         if is_within_cheap_window:
@@ -480,7 +485,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         result.update(
             action="none",
             status="planning_waiting_for_cheap_window",
-            next_peak=peak_time.isoformat(),
+            next_peak=peak_start.isoformat(),
             reason="waiting_for_cheap_price",
             latest_start=latest_cheap_time.isoformat(),
             target_soc=target_soc,
