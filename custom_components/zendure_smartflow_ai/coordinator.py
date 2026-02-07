@@ -121,6 +121,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             DEFAULT_DEVICE_PROFILE,
         )
 
+        if self.device_profile == DEVICE_PROFILE_SF800PRO:
+            self._profile = SF800PRO_PROFILE
+        else:
+            self._profile = SF2400AC_PROFILE
+
         from .device_profiles import SF2400AC
 
         # Device profile (V1.5.0 – aktuell fest verdrahtet)
