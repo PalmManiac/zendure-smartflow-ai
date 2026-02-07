@@ -39,6 +39,17 @@ CONF_GRID_POWER_ENTITY = "grid_power_entity"      # +import / -export
 CONF_GRID_IMPORT_ENTITY = "grid_import_entity"    # import W
 CONF_GRID_EXPORT_ENTITY = "grid_export_entity"    # export W
 
+# --------------------------------------------------
+# Device profiles (V1.5.x)
+# --------------------------------------------------
+
+CONF_DEVICE_PROFILE = "device_profile"
+
+DEVICE_PROFILE_SF2400AC = "SF2400AC"
+DEVICE_PROFILE_SF800PRO = "SF800Pro"
+
+DEFAULT_DEVICE_PROFILE = DEVICE_PROFILE_SF2400AC
+
 GRID_MODE_NONE = "none"
 GRID_MODE_SINGLE = "single"
 GRID_MODE_SPLIT = "split"
