@@ -152,9 +152,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "manual_action": MANUAL_STANDBY,
         }
 
-        # --- device profile (V1.5.x groundwork) ---
-        self.active_profile = SF2400AC
-
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
             "runtime_mode": dict(self.runtime_mode),
