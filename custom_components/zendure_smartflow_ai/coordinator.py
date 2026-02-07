@@ -1432,7 +1432,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "force_no_charge": force_no_charge,
                 "target_import_w": 35.0,
                 "net_grid_w": net_grid_w,
-                "device_profile": self.device_profile,
+                "device_profile": self.device_profile_key,
                 "profile_max_input_w": profile_max_in,
                 "profile_max_output_w": profile_max_out,
             }
