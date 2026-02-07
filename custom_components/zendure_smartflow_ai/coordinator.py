@@ -123,10 +123,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             or DEFAULT_DEVICE_PROFILE
         )
 
-        if self.device_profile_key == DEVICE_PROFILE_SF800PRO:
-            self._device_profile_cfg = SF800PRO_PROFILE
-        else:
-            self._device_profile_cfg = SF2400AC_PROFILE
+        self._device_profile_cfg = DEVICE_PROFILES[self.device_profile_key]
 
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
