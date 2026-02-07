@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
+from .device_profiles import SF2400AC_PROFILE, SF800PRO_PROFILE
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -116,6 +117,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
+        from .device_profiles import SF2400AC
+
+        self.device_profile = SF2400AC
+
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
 
@@ -137,6 +142,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "ai_mode": AI_MODE_AUTOMATIC,
             "manual_action": MANUAL_STANDBY,
         }
+
+        # --- device profile (V1.5.x groundwork) ---
+        self.active_profile = SF2400AC
 
         self._store = Store(hass, STORE_VERSION, f"{DOMAIN}.{entry.entry_id}")
         self._persist: dict[str, Any] = {
@@ -508,18 +516,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drives grid import close to a small target (avoids export / oscillation).
         """
 
-        PROFILE = {
-            "TARGET_IMPORT_W": 15.0,
-            "DEADBAND_W": 20.0,
-            "EXPORT_GUARD_W": 45.0,
-            "KP_UP": 0.35,
-            "KP_DOWN": 0.55,
-            "MAX_STEP_UP": 180.0,
-            "MAX_STEP_DOWN": 300.0,
-            "KEEPALIVE_MIN_DEFICIT_W": 10.0,
-            "KEEPALIVE_MIN_OUTPUT_W": 30.0,
-        }
-        
+        PROFILE = SF2400AC_PROFILE
+
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
         TARGET_IMPORT_W = PROFILE["TARGET_IMPORT_W"]
         DEADBAND_W = PROFILE["DEADBAND_W"]
