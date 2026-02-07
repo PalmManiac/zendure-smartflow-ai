@@ -14,6 +14,8 @@ DEVICE_PROFILES: dict[str, dict[str, float]] = {
         "MAX_STEP_DOWN": 900.0,
         "KEEPALIVE_MIN_DEFICIT_W": 15.0,
         "KEEPALIVE_MIN_OUTPUT_W": 60.0,
+        "MAX_INPUT_W": 2400.0,
+        "MAX_OUTPUT_W":2400.0,
     },
     DEVICE_PROFILE_SF800PRO: {
         "TARGET_IMPORT_W": 30.0,
@@ -25,5 +27,7 @@ DEVICE_PROFILES: dict[str, dict[str, float]] = {
         "MAX_STEP_DOWN": 400.0,
         "KEEPALIVE_MIN_DEFICIT_W": 15.0,
         "KEEPALIVE_MIN_OUTPUT_W": 60.0,
+        "MAX_INPUT_W": 1000.0,
+        "MAX_OUTPUT_W": 800.0,
     },
 }
