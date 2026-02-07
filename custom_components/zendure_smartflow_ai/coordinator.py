@@ -577,6 +577,14 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             if self._persist.get("last_ts") is None:
                 await self._load()
+                
+                # --- STEP 7.3: Migration-Safety Device Profile ---
+                if CONF_DEVICE_PROFILE not in self.entry.options:
+                    self.entry.options = {
+                        **self.entry.options,
+                        CONF_DEVICE_PROFILE: DEFAULT_DEVICE_PROFILE,
+                    }
+                    
                 self._persist["last_ts"] = dt_util.utcnow().isoformat()
 
             now = dt_util.utcnow()
