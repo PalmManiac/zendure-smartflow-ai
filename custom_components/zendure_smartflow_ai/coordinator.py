@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 from .device_profiles import DEVICE_PROFILES
+from .const import CONF_DEVICE_PROFILE, DEFAULT_DEVICE_PROFILE
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -114,6 +115,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+
+        self.device_profile = entry.options.get(
+            CONF_DEVICE_PROFILE,
+            DEFAULT_DEVICE_PROFILE,
+        )
 
         from .device_profiles import SF2400AC
 
