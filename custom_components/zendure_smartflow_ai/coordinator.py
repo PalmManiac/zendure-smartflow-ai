@@ -131,6 +131,11 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
 
+        self.device_profile = entry.options.get(
+            CONF_DEVICE_PROFILE,
+            DEFAULT_DEVICE_PROFILE,
+        )
+
         self.entities = SelectedEntities(
             soc=str(entry.data[CONF_SOC_ENTITY]),
             pv=str(entry.data[CONF_PV_ENTITY]),
