@@ -572,6 +572,9 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         out_w = max(0.0, min(float(max_discharge), out_w))
 
+        KEEPALIVE_MIN_DEFICIT_W = PROFILE["KEEPALIVE_MIN_DEFICIT_W"]
+        KEEPALIVE_MIN_OUTPUT_W = PROFILE["KEEPALIVE_MIN_OUTPUT_W"]
+
         # 3) Optional: nur wirklich bei quasi 0 Import ausmachen (nicht bei 20-30W!)
         if allow_zero and deficit_w <= KEEPALIVE_MIN_DEFICIT_W:
             out_w = max(out_w, KEEPALIVE_MIN_OUTPUT_W)
