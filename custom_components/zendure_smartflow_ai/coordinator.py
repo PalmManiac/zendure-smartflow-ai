@@ -664,6 +664,13 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             max_charge = self._get_setting(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE)
             max_discharge = self._get_setting(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE)
 
+            # --- PROFILE HARD LIMITS (Clamp) ---
+            profile_max_in = float(self._profile.get("MAX_INPUT_W", max_charge))
+            profile_max_out = float(self._profile.get("MAX_OUTPUT_W", max_discharge))
+
+            max_charge = min(float(max_charge), profile_max_in)
+            max_discharge = min(float(max_discharge), profile_max_out)
+
             expensive = self._get_setting(SETTING_PRICE_THRESHOLD, DEFAULT_PRICE_THRESHOLD)
             very_expensive = self._get_setting(SETTING_VERY_EXPENSIVE_THRESHOLD, DEFAULT_VERY_EXPENSIVE_THRESHOLD)
             emergency_soc = self._get_setting(SETTING_EMERGENCY_SOC, DEFAULT_EMERGENCY_SOC)
@@ -1411,6 +1418,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "target_import_w": 35.0,
                 "net_grid_w": net_grid_w,
                 "device_profile": self.device_profile,
+                "profile_max_input_w": profile_max_in,
+                "profile_max_output_w": profile_max_out,
             }
 
             # --- FINAL SENSOR STATES (Top-Level, never None) ---
