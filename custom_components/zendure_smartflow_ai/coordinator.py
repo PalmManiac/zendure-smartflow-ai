@@ -119,7 +119,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         from .device_profiles import SF2400AC
 
-        self.device_profile = SF2400AC
+        # Device profile (V1.5.0 – aktuell fest verdrahtet)
+        self.device_profile = SF2400AC_PROFILE
 
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
@@ -516,7 +517,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drives grid import close to a small target (avoids export / oscillation).
         """
 
-        PROFILE = SF2400AC_PROFILE
+        PROFILE = self.device_profile
 
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
         TARGET_IMPORT_W = PROFILE["TARGET_IMPORT_W"]
@@ -1373,6 +1374,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "force_no_charge": force_no_charge,
                 "target_import_w": 35.0,
                 "net_grid_w": net_grid_w,
+                "device_profile": "SF2400AC",
             }
 
             # --- FINAL SENSOR STATES (Top-Level, never None) ---
