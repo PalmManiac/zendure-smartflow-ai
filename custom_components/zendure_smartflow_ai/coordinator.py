@@ -287,12 +287,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return float(val)
         except Exception:
             return float(default)
-
-    def _get_device_profile(self) -> dict[str, float]:
-        return DEVICE_PROFILES.get(
-            self.device_profile,
-            DEVICE_PROFILES[DEFAULT_DEVICE_PROFILE],
-        )
     
     def _get_grid(self) -> tuple[float | None, float | None]:
         """
