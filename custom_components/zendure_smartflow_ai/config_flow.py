@@ -131,6 +131,24 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return vol.Schema(
             {
+                vol.Optional(
+                    CONF_DEVICE_PROFILE,
+                    default=_val(CONF_DEVICE_PROFILE) or DEFAULT_DEVICE_PROFILE,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {
+                                "value": DEVICE_PROFILE_SF2400AC,
+                                "label": "Zendure SF2400AC",
+                            },
+                            {
+                                "value": DEVICE_PROFILE_SF800PRO,
+                                "label": "Zendure SF800Pro",
+                            },
+                        ]
+                    )
+                ),
+                
                 vol.Required(CONF_SOC_ENTITY, default=_val(CONF_SOC_ENTITY)):
                     selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor")),
 
