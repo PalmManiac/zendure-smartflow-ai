@@ -1245,14 +1245,24 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self._set_input_limit(in_w)
                 await self._set_output_limit(out_w)
 
-            # HARD SYNC: power_state reflects real power
-            if ac_mode != ZENDURE_MODE_OUTPUT or float(out_w) <= 0.0:
-                if self._persist.get("power_state") == "discharging":
-                    self._persist["power_state"] = "idle"
-                    power_state = "idle"
-
             is_charging = ac_mode == ZENDURE_MODE_INPUT and float(in_w) > 0.0
             is_discharging = ac_mode == ZENDURE_MODE_OUTPUT and float(out_w) > 0.0
+
+            # --------------------------------------------------
+            # HARD SYNC: power_state follows hardware reality
+            # --------------------------------------------------
+            if is_charging:
+                self._persist["power_state"] = "charging"
+                power_state = "charging"
+
+            elif is_discharging:
+                self._persist["power_state"] = "discharging"
+                power_state = "discharging"
+
+            else:
+                self._persist["power_state"] = "idle"
+                power_state = "idle"
+                self._persist["discharge_target_w"] = 0.0
 
             # NEXT ACTION TIMESTAMP
             if self._persist.get("power_state") in ("charging", "discharging"):
