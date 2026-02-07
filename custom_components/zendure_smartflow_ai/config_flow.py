@@ -162,6 +162,21 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             ]
                         )
                     ),
+
+                # -------------------------------------------------
+                # DEVICE PROFILE SELECTION (Step 8.2)
+                # -------------------------------------------------
+                vol.Optional(
+                    CONF_DEVICE_PROFILE,
+                    default=_val(CONF_DEVICE_PROFILE) or DEFAULT_DEVICE_PROFILE,
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            {"value": DEVICE_PROFILE_SF2400AC, "label": "SF2400AC"},
+                            {"value": DEVICE_PROFILE_SF800PRO, "label": "SF800Pro"},
+                        ]
+                    )
+                ),
             }
         )
 
