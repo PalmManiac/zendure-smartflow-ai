@@ -116,34 +116,17 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
-        self.device_profile = entry.data.get(
-            CONF_DEVICE_PROFILE,
-            DEFAULT_DEVICE_PROFILE,
-        )
-
-        self.device_profile = (
+        # --- Device profile selection (V1.5.0) ---
+        self.device_profile_key = (
             entry.options.get(CONF_DEVICE_PROFILE)
             or entry.data.get(CONF_DEVICE_PROFILE)
             or DEFAULT_DEVICE_PROFILE
         )
 
-        if self.device_profile == DEVICE_PROFILE_SF800PRO:
-            self._profile = SF800PRO_PROFILE
+        if self.device_profile_key == DEVICE_PROFILE_SF800PRO:
+            self._device_profile_cfg = SF800PRO_PROFILE
         else:
-            self._profile = SF2400AC_PROFILE
-
-        from .device_profiles import SF2400AC
-
-        # Device profile (V1.5.0 – aktuell fest verdrahtet)
-        profile_key = entry.options.get(
-            CONF_DEVICE_PROFILE,
-            DEFAULT_DEVICE_PROFILE,
-        )
-
-        if profile_key == DEVICE_PROFILE_SF800PRO:
-            self.device_profile = SF800PRO_PROFILE
-        else:
-            self.device_profile = SF2400AC_PROFILE
+            self._device_profile_cfg = SF2400AC_PROFILE
 
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
@@ -552,7 +535,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drives grid import close to a small target (avoids export / oscillation).
         """
 
-        PROFILE = self._get_device_profile()
+        PROFILE = self._device_profile_cfg
 
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
         TARGET_IMPORT_W = PROFILE["TARGET_IMPORT_W"]
@@ -597,8 +580,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         out_w = max(0.0, min(float(max_discharge), out_w))
 
         # 3) Optional: nur wirklich bei quasi 0 Import ausmachen (nicht bei 20-30W!)
-        if allow_zero and deficit_w <= PROFILE["KEEPALIVE_MIN_DEFICIT_W"]:
-            out_w = max(out_w, PROFILE["KEEPALIVE_MIN_OUTPUT_W"])
+        if allow_zero and deficit_w <= KEEPALIVE_MIN_DEFICIT_W:
+            out_w = max(out_w, KEEPALIVE_MIN_OUTPUT_W)
         return float(out_w)
 
     # --------------------------------------------------
