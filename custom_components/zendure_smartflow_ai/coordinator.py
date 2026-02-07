@@ -81,7 +81,6 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 STORE_VERSION = 1
 
-
 def _to_float(v: Any, default: float | None = None) -> float | None:
     try:
         if v is None:
@@ -94,7 +93,6 @@ def _to_float(v: Any, default: float | None = None) -> float | None:
         return float(s)
     except Exception:
         return default
-
 
 @dataclass
 class SelectedEntities:
@@ -120,7 +118,15 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         from .device_profiles import SF2400AC
 
         # Device profile (V1.5.0 – aktuell fest verdrahtet)
-        self.device_profile = SF2400AC_PROFILE
+        profile_key = entry.options.get(
+            CONF_DEVICE_PROFILE,
+            DEFAULT_DEVICE_PROFILE,
+        )
+
+        if profile_key == DEVICE_PROFILE_SF800PRO:
+            self.device_profile = SF800PRO_PROFILE
+        else:
+            self.device_profile = SF2400AC_PROFILE
 
         # runtime settings mirror of entry.options (used by number entities)
         self.runtime_settings: dict[str, float] = dict(entry.options)
