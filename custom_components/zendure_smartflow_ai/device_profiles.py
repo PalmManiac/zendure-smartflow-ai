@@ -1,6 +1,6 @@
 # device_profiles.py
 
-SF2400AC = {
+SF2400AC_PROFILE = {
     "TARGET_IMPORT_W": 15.0,
     "DEADBAND_W": 20.0,
     "EXPORT_GUARD_W": 45.0,
@@ -12,7 +12,7 @@ SF2400AC = {
     "KEEPALIVE_MIN_OUTPUT_W": 30.0,
 }
 
-SF800PRO = {
+SF800PRO_PROFILE = {
     "TARGET_IMPORT_W": 30.0,
     "DEADBAND_W": 35.0,
     "EXPORT_GUARD_W": 40.0,
