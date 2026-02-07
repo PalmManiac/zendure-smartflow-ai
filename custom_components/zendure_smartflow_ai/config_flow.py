@@ -131,7 +131,7 @@ class ZendureSmartFlowConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return vol.Schema(
             {
-                vol.Optional(
+                vol.Required(
                     CONF_DEVICE_PROFILE,
                     default=_val(CONF_DEVICE_PROFILE) or DEFAULT_DEVICE_PROFILE,
                 ): selector.SelectSelector(
