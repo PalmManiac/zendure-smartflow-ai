@@ -521,7 +521,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         max_discharge: float,
         soc: float,
         soc_min: float,
-        profile: dict[str, float],
         allow_zero: bool = True,
     ) -> float:
         """
