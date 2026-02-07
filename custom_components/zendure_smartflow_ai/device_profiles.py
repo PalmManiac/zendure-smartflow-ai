@@ -1,30 +1,29 @@
 # device_profiles.py
 
-SF2400AC_PROFILE = {
-    "TARGET_IMPORT_W": 35.0,
-    "DEADBAND_W": 40.0,
-    "EXPORT_GUARD_W": 45.0,
-    "KP_UP": 0.55,
-    "KP_DOWN": 0.95,
-    "MAX_STEP_UP": 450.0,
-    "MAX_STEP_DOWN": 900.0,
-    "KEEPALIVE_MIN_DEFICIT_W": 15.0,
-    "KEEPALIVE_MIN_OUTPUT_W": 60.0,
-}
+DEVICE_PROFILE_SF2400AC = "sf2400ac"
+DEVICE_PROFILE_SF800PRO = "sf800pro"
 
-SF800PRO_PROFILE = {
-    "TARGET_IMPORT_W": 30.0,
-    "DEADBAND_W": 35.0,
-    "EXPORT_GUARD_W": 40.0,
-    "KP_UP": 0.40,
-    "KP_DOWN": 0.75,
-    "MAX_STEP_UP": 250.0,
-    "MAX_STEP_DOWN": 400.0,
-    "KEEPALIVE_MIN_DEFICIT_W": 15.0,
-    "KEEPALIVE_MIN_OUTPUT_W": 60.0,
-}
-
-DEVICE_PROFILES = {
-    "SF2400AC": SF2400AC_PROFILE,
-    "SF800Pro": SF800PRO_PROFILE,
+DEVICE_PROFILES: dict[str, dict[str, float]] = {
+    DEVICE_PROFILE_SF2400AC: {
+        "TARGET_IMPORT_W": 35.0,
+        "DEADBAND_W": 40.0,
+        "EXPORT_GUARD_W": 45.0,
+        "KP_UP": 0.55,
+        "KP_DOWN": 0.95,
+        "MAX_STEP_UP": 450.0,
+        "MAX_STEP_DOWN": 900.0,
+        "KEEPALIVE_MIN_DEFICIT_W": 15.0,
+        "KEEPALIVE_MIN_OUTPUT_W": 60.0,
+    },
+    DEVICE_PROFILE_SF800PRO: {
+        "TARGET_IMPORT_W": 30.0,
+        "DEADBAND_W": 35.0,
+        "EXPORT_GUARD_W": 40.0,
+        "KP_UP": 0.40,
+        "KP_DOWN": 0.75,
+        "MAX_STEP_UP": 250.0,
+        "MAX_STEP_DOWN": 400.0,
+        "KEEPALIVE_MIN_DEFICIT_W": 15.0,
+        "KEEPALIVE_MIN_OUTPUT_W": 60.0,
+    },
 }
