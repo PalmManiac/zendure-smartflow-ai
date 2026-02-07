@@ -299,6 +299,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except Exception:
             return float(default)
 
+    def _get_device_profile(self) -> dict[str, float]:
+        return DEVICE_PROFILES.get(
+            self.device_profile,
+            DEVICE_PROFILES[DEFAULT_DEVICE_PROFILE],
+        )
+    
     def _get_grid(self) -> tuple[float | None, float | None]:
         """
         Returns (deficit_w, surplus_w).
@@ -528,7 +534,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drives grid import close to a small target (avoids export / oscillation).
         """
 
-        PROFILE = self.device_profile
+        PROFILE = self._get_device_profile()
 
         # Lass bewusst einen kleinen Netzbezug stehen -> verhindert Einspeisung durch Messrauschen
         TARGET_IMPORT_W = PROFILE["TARGET_IMPORT_W"]
