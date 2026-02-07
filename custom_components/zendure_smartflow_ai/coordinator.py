@@ -665,8 +665,8 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
 
             # --- PROFILE HARD LIMITS (Clamp) ---
-            profile_max_in = float(self._profile.get("MAX_INPUT_W", max_charge))
-            profile_max_out = float(self._profile.get("MAX_OUTPUT_W", max_discharge))
+            profile_max_in = float(self._device_profile_cfg.get("MAX_INPUT_W", max_charge))
+            profile_max_out = float(self._device_profile_cfg.get("MAX_OUTPUT_W", max_discharge))
 
             max_charge = min(float(max_charge), profile_max_in)
             max_discharge = min(float(max_discharge), profile_max_out)
