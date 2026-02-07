@@ -867,7 +867,6 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     max_discharge=max_discharge,
                     soc=soc,
                     soc_min=soc_min,
-                    profile=DEVICE_PROFILES[self.device_profile],
                 )
                 self._persist["discharge_target_w"] = float(out_w)
 
