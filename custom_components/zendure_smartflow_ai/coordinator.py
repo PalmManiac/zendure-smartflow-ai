@@ -116,7 +116,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
-        self.device_profile = entry.options.get(
+        self.device_profile = entry.data.get(
             CONF_DEVICE_PROFILE,
             DEFAULT_DEVICE_PROFILE,
         )
