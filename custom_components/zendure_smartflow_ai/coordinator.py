@@ -649,10 +649,27 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             soc = float(soc)
             pv = float(pv)
 
-            soc_min = self._get_setting(SETTING_SOC_MIN, DEFAULT_SOC_MIN)
-            soc_max = self._get_setting(SETTING_SOC_MAX, DEFAULT_SOC_MAX)
-            max_charge = self._get_setting(SETTING_MAX_CHARGE, DEFAULT_MAX_CHARGE)
-            max_discharge = self._get_setting(SETTING_MAX_DISCHARGE, DEFAULT_MAX_DISCHARGE)
+            profile = self._device_profile_cfg
+
+            soc_min = self._get_setting(
+                SETTING_SOC_MIN,
+                profile.get("SOC_MIN", DEFAULT_SOC_MIN),
+            )
+
+            soc_max = self._get_setting(
+                SETTING_SOC_MAX,
+                profile.get("SOC_MAX", DEFAULT_SOC_MAX),
+            )
+
+            max_charge = self._get_setting(
+                SETTING_MAX_CHARGE,
+                profile.get("MAX_CHARGE_W", DEFAULT_MAX_CHARGE),
+            )
+
+            max_discharge = self._get_setting(
+                SETTING_MAX_DISCHARGE,
+                profile.get("MAX_DISCHARGE_W", DEFAULT_MAX_DISCHARGE),
+            )
 
             # --- PROFILE HARD LIMITS (Clamp) ---
             profile_max_in = float(self._profile.get("MAX_INPUT_W", max_charge))
