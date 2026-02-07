@@ -116,9 +116,10 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.hass = hass
         self.entry = entry
 
-        self.device_profile = entry.data.get(
-            CONF_DEVICE_PROFILE,
-            DEFAULT_DEVICE_PROFILE,
+        self.device_profile = (
+            entry.options.get(CONF_DEVICE_PROFILE)
+            or entry.data.get(CONF_DEVICE_PROFILE)
+            or DEFAULT_DEVICE_PROFILE
         )
 
         if self.device_profile == DEVICE_PROFILE_SF800PRO:
@@ -533,11 +534,12 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _delta_discharge_w(
         self,
         *,
-        deficit_w: float,      # hier übergibst du net_grid_w (Import +, Export -)
+        deficit_w: float,
         prev_out_w: float,
         max_discharge: float,
         soc: float,
         soc_min: float,
+        profile: dict[str, float],
         allow_zero: bool = True,
     ) -> float:
         """
@@ -864,6 +866,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     max_discharge=max_discharge,
                     soc=soc,
                     soc_min=soc_min,
+                    profile=DEVICE_PROFILES[self.device_profile],
                 )
                 self._persist["discharge_target_w"] = float(out_w)
 
