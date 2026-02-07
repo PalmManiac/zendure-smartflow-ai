@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
-from .device_profiles import SF2400AC_PROFILE, SF800PRO_PROFILE
+from .device_profiles import DEVICE_PROFILES
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
