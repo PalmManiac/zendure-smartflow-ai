@@ -1405,7 +1405,7 @@ class ZendureSmartFlowCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "force_no_charge": force_no_charge,
                 "target_import_w": 35.0,
                 "net_grid_w": net_grid_w,
-                "device_profile": "SF2400AC",
+                "device_profile": self.device_profile,
             }
 
             # --- FINAL SENSOR STATES (Top-Level, never None) ---
